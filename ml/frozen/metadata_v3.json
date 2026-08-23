@@ -1,0 +1,12 @@
+{
+  "version": "nia-v3",
+  "input_shape": [
+    64,
+    272
+  ],
+  "raw_active_crop_before_resampling": true,
+  "body_xy_features": 142,
+  "hand_local_xyz_features": 126,
+  "presence_features": 4,
+  "dominant_hand_canonicalization": true
+}

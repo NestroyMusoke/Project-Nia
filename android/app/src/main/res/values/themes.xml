@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ProjectNia" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/nia_primary</item>
+        <item name="colorPrimaryVariant">@color/nia_primary_dark</item>
+        <item name="colorSecondary">@color/nia_accent</item>
+        <item name="android:fontFamily">sans</item>
+    </style>
+</resources>
+

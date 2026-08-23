@@ -1,0 +1,10 @@
+google-adk==2.7.1
+fastapi==0.141.1
+uvicorn[standard]==0.35.0
+gunicorn==23.0.0
+google-cloud-firestore==2.28.1
+google-cloud-pubsub==2.39.1
+pydantic==2.12.5
+pytest==8.4.2
+httpx==0.28.1
+

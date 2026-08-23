@@ -1,0 +1,29 @@
+{
+  "project": "Project Nia",
+  "model": "Model 3 Mobile",
+  "feature_version": "V3",
+  "input_shape": [
+    64,
+    272
+  ],
+  "class_count": 32,
+  "embedding_dimensions": 384,
+  "outputs": [
+    "sign_probability",
+    "personalization_embedding"
+  ],
+  "precision": "FP16 weights",
+  "size_mb": 3.8844642639160156,
+  "dev_accuracy": 0.7306145893164848,
+  "dev_macro_f1": 0.7275776214147942,
+  "embedding_mean_cosine_parity": 0.9999997615814209,
+  "personalization_protocol": {
+    "seed": 20260822,
+    "shots_per_sign": 3,
+    "blend": 0.65,
+    "temperature": 12.0,
+    "dev_accuracy": 0.779077770130764,
+    "dev_macro_f1": 0.7745898317643005
+  },
+  "final_test_used": false
+}

@@ -1,0 +1,30 @@
+{
+  "project": "Project Nia",
+  "final_test_sequences": 2425,
+  "final_test_signers": [
+    22343,
+    53618,
+    61333,
+    62590
+  ],
+  "model": "Model 3 Mobile FP16",
+  "model_size_mb": 3.88,
+  "feature_version": "V3",
+  "zero_shot": {
+    "accuracy": 0.8647422680412371,
+    "macro_f1": 0.8605836099751332
+  },
+  "personalization_protocol": {
+    "shots_per_sign": 3,
+    "blend": 0.65,
+    "temperature": 12.0,
+    "seed": 20260822,
+    "same_subset_zero_shot_accuracy": 0.8637922586967173,
+    "same_subset_zero_shot_macro_f1": 0.8592420030311476,
+    "personalized_accuracy": 0.9211170994610485,
+    "personalized_macro_f1": 0.9186907350237925,
+    "absolute_gain": 0.0573248407643312
+  },
+  "final_test_used": true,
+  "model_selection_after_final_test": false
+}

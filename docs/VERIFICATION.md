@@ -1,0 +1,22 @@
+# Verification record
+
+Verified on 2026-08-23:
+
+- Backend Python source compiles.
+- All frozen JSON files parse.
+- Android manifest and resource XML parse.
+- ADK/FastAPI dependencies install at the pinned versions.
+- Backend tests: `3 passed` (structured output, safe fallback, authenticated-push envelope handling in local mode).
+- FastAPI `/healthz`: HTTP `200`, body `{"status":"ok"}`.
+- Gradle wrapper: `8.14.3`, running successfully on Java `24.0.2`.
+- Frozen classifier source and Android asset are byte-identical:
+  `9bcc830589b8022d1012636b62a5b988fbe39c6be890438cfbb821c0a079c7f5`.
+- Official Holistic Landmarker asset: 13,683,609 bytes, SHA-256
+  `e2dab61191e2dcd0a15f943d8e3ed1dce13c82dfa597b9dd39f562975a50c3f8`.
+
+Not verified on this machine:
+
+- Android compilation, unit tests, APK installation, and live camera inference. Android Studio/SDK 36 are not installed, and the initial online Android dependency resolution was too slow to finish during this build session.
+- Cloud deployment and a live Gemini call. No Google Cloud project or credentials were supplied.
+
+The next acceptance checkpoint is therefore a physical Android test using a fresh field clip; it must not use the frozen final test set for threshold or model tuning.
