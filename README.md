@@ -12,6 +12,9 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Persistent, local 384-D prototype personalization using the frozen 3-shot / `0.65` / temperature `12` protocol.
 - Correction UI for teaching up to three examples per sign.
 - Optional online client for a Gemini + Google ADK service.
+- Native OpenGL 3D signing avatar with full upper-body and 21-joint-per-hand articulation; no video clips.
+- Local MediaPipe-to-avatar motion retargeting, draft/validated states, and signer approval gating.
+- Hearing-person message input that asks the online agent for playable, validated sign glosses.
 - Cloud Run service with Firestore goal memory and Pub/Sub background-job tooling.
 - A clean `OfflineLanguageLayer` boundary for Gemma; Gemma is not required for core recognition.
 
@@ -41,6 +44,8 @@ Build from Windows PowerShell:
 ```
 
 Install the APK from `android/app/build/outputs/apk/debug/app-debug.apk`, grant camera permission, tap **Start recording**, perform one isolated sign, then tap **Stop and recognize**. Use **Correct and teach Nia** to store the current 384-D embedding locally.
+
+Tap **3D signer** to preview the captured motion on the articulated avatar. A fluent signer must inspect it before using **Signer-validate avatar motion**. Only validated clips are available to agent replies. A hearing person can type into **Message for the 3D signer** and tap **Sign it**; Gemini may return only glosses the phone has marked as validated. See `docs/AVATAR.md` for the commissioning and safety contract.
 
 To connect the online agent, add this to your user Gradle properties (do not commit it):
 

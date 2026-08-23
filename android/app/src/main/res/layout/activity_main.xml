@@ -5,14 +5,60 @@
     android:layout_height="match_parent"
     android:background="@color/nia_surface">
 
-    <androidx.camera.view.PreviewView
-        android:id="@+id/preview"
+    <FrameLayout
+        android:id="@+id/stage"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@id/resultPanel"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.camera.view.PreviewView
+            android:id="@+id/preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <org.projectnia.app.avatar.SigningAvatarView
+            android:id="@+id/avatarView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/avatarCaptionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:background="#D9162430"
+            android:padding="12dp"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:gravity="end"
+            android:orientation="horizontal"
+            android:padding="12dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cameraModeButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Camera" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/avatarModeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="3D signer" />
+        </LinearLayout>
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/resultPanel"
@@ -28,7 +74,7 @@
             android:id="@+id/statusText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Ready — record one isolated sign"
+            android:text="Ready - record one isolated sign"
             android:textColor="@color/nia_primary_dark"
             android:textSize="16sp" />
 
@@ -37,7 +83,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="—"
+            android:text="-"
             android:textColor="@color/nia_primary_dark"
             android:textSize="34sp"
             android:textStyle="bold" />
@@ -48,6 +94,31 @@
             android:layout_height="wrap_content"
             android:text=""
             android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/hearingMessageInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:hint="Message for the 3D signer"
+                android:imeOptions="actionDone"
+                android:inputType="textCapSentences|textMultiLine"
+                android:maxLines="2" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/signMessageButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Sign it" />
+        </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/captureButton"
@@ -63,6 +134,15 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Correct and teach Nia"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/validateMotionButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Signer-validate avatar motion"
             android:visibility="gone" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

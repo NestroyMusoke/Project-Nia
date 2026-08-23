@@ -6,7 +6,7 @@ Verified on 2026-08-23:
 - All frozen JSON files parse.
 - Android manifest and resource XML parse.
 - ADK/FastAPI dependencies install at the pinned versions.
-- Backend tests: `3 passed` (structured output, safe fallback, authenticated-push envelope handling in local mode).
+- Backend tests: `4 passed` (structured output, safe fallback, avatar-gloss allow-list, and authenticated-push envelope handling in local mode).
 - FastAPI `/healthz`: HTTP `200`, body `{"status":"ok"}`.
 - Gradle wrapper: `8.14.3`, running successfully on Java `24.0.2`.
 - Frozen classifier source and Android asset are byte-identical:
@@ -20,3 +20,10 @@ Not verified on this machine:
 - Cloud deployment and a live Gemini call. No Google Cloud project or credentials were supplied.
 
 The next acceptance checkpoint is therefore a physical Android test using a fresh field clip; it must not use the frozen final test set for threshold or model tuning.
+
+Avatar implementation added after the original verification record:
+
+- Native OpenGL ES renderer, landmark retargeter, private motion store, explicit signer-validation gate, and agent gloss allow-list are implemented.
+- A new unit test covers fixed 64-frame avatar retargeting and verifies that captured motion defaults to unvalidated.
+- A backend unit test covers removal of invented or unavailable glosses.
+- These new Android tests and the live 3D appearance remain pending Android Studio/SDK 36 and a physical phone. No claim of signer validation or linguistic accuracy is made by the code alone.

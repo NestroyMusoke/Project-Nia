@@ -7,7 +7,7 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from .agent import root_agent
-from .models import InterpretRequest, InterpretResponse
+from .models import InterpretRequest, InterpretResponse, MessageToSignRequest
 from .storage import ConversationStore
 
 
@@ -35,6 +35,7 @@ class NiaAgentService:
         prompt = json.dumps(
             {
                 "recognized_tokens": [token.model_dump() for token in request.tokens],
+                "avatar_vocabulary": request.avatar_vocabulary,
                 "goal_state": goal,
                 "request_id": request.request_id,
                 "user_id": request.user_id,
@@ -52,9 +53,57 @@ class NiaAgentService:
                 final_text = "".join(part.text or "" for part in event.content.parts)
 
         parsed = self._parse_response(final_text)
+        parsed = self._filter_sign_glosses(parsed, request.avatar_vocabulary)
         response = InterpretResponse(request_id=request.request_id, **parsed)
         self.store.save_turn(request.user_id, request.session_id, request.model_dump(), response.model_dump())
         return response
+
+    async def sign_message(self, request: MessageToSignRequest) -> InterpretResponse:
+        goal = self.store.get_goal(request.user_id, request.session_id)
+        try:
+            await self.sessions.create_session(
+                app_name=APP_NAME,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                state={"goal_state": goal},
+            )
+        except Exception:
+            pass
+
+        prompt = json.dumps(
+            {
+                "hearing_message": request.message,
+                "avatar_vocabulary": request.avatar_vocabulary,
+                "goal_state": goal,
+                "request_id": request.request_id,
+                "user_id": request.user_id,
+                "session_id": request.session_id,
+            }
+        )
+        content = types.Content(role="user", parts=[types.Part(text=prompt)])
+        final_text = ""
+        async for event in self.runner.run_async(
+            user_id=request.user_id,
+            session_id=request.session_id,
+            new_message=content,
+        ):
+            if event.is_final_response() and event.content and event.content.parts:
+                final_text = "".join(part.text or "" for part in event.content.parts)
+
+        parsed = self._parse_response(final_text)
+        parsed = self._filter_sign_glosses(parsed, request.avatar_vocabulary)
+        response = InterpretResponse(request_id=request.request_id, **parsed)
+        self.store.save_turn(request.user_id, request.session_id, request.model_dump(), response.model_dump())
+        return response
+
+    @staticmethod
+    def _filter_sign_glosses(parsed: dict, allowed: list[str]) -> dict:
+        filtered = dict(parsed)
+        allowed_set = set(allowed)
+        filtered["sign_glosses"] = [
+            gloss for gloss in parsed.get("sign_glosses", []) if gloss in allowed_set
+        ]
+        return filtered
 
     @staticmethod
     def _parse_response(text: str) -> dict:
@@ -65,13 +114,14 @@ class NiaAgentService:
             payload = json.loads(cleaned)
             return {
                 "message": str(payload["message"]),
+                "sign_glosses": [str(gloss) for gloss in payload.get("sign_glosses", [])],
                 "goal_state": dict(payload["goal_state"]),
                 "clarification_needed": bool(payload["clarification_needed"]),
             }
         except (ValueError, KeyError, TypeError):
             return {
                 "message": text or "I’m not sure yet. Could you repeat that sign?",
+                "sign_glosses": [],
                 "goal_state": {"status": "clarifying", "known": {}, "missing": ["intended meaning"], "next_action": "ask user"},
                 "clarification_needed": True,
             }
-

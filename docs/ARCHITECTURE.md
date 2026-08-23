@@ -13,11 +13,16 @@ flowchart TD
     Blend --> Gate["Confidence + top-two margin gate"]
     Gate -->|accepted| Offline["Offline sign token"]
     Gate -->|uncertain| Clarify["Ask user to repeat/correct"]
+    Holistic --> Retarget["64-frame avatar motion retargeting"]
+    Retarget --> Draft["Local draft motion"]
+    Draft -->|fluent signer approval| Validated["Validated avatar vocabulary"]
     Offline -->|optional later| Gemma["Gemma offline language layer"]
     Offline -->|online| ADK["Gemini + Google ADK on Cloud Run"]
+    Hearing["Hearing-person message"] --> ADK
+    Validated --> ADK
+    ADK -->|validated glosses only| Avatar["Native 3D signing avatar"]
     ADK --> Firestore["Firestore goal/conversation memory"]
     ADK --> PubSub["Pub/Sub background jobs"]
 ```
 
-Raw camera frames, landmarks, and personal embeddings remain on device. Only accepted labels and confidence metadata are sent to the online agent. Pub/Sub is reserved for non-urgent work; immediate replies stay synchronous.
-
+Raw camera frames, landmarks, avatar motion, and personal embeddings remain on device. Only accepted labels, confidence metadata, a hearing-person message when supplied, and the available validated gloss names are sent to the online agent. Pub/Sub is reserved for non-urgent work; immediate replies stay synchronous.
