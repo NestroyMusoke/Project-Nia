@@ -253,23 +253,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             binding.statusText.text = "Enter a message for the 3D signer"
             return
         }
-        val previewVocabulary = avatarMotionStore.availableGlosses(validatedOnly = !BuildConfig.DEBUG)
+        val previewVocabulary = avatarMotionStore.availableGlosses(validatedOnly = true)
         val localPlan = SignedMessagePlanner.plan(message, previewVocabulary)
         if (localPlan.isPlayable) {
             val clips = localPlan.glosses.mapNotNull { gloss ->
-                avatarMotionStore.load(gloss)?.takeIf { it.signerValidated || BuildConfig.DEBUG }
+                avatarMotionStore.load(gloss)?.takeIf { it.signerValidated }
             }
             if (clips.size == localPlan.glosses.size) {
                 binding.avatarView.play(clips)
                 showAvatarStage("Sign preview: ${localPlan.glosses.joinToString(" ").uppercase(Locale.ROOT)}")
-                binding.statusText.text = if (clips.all { it.signerValidated }) {
-                    if (localPlan.usesFingerspelling) {
-                        "Signing locally with verified signs and fingerspelling"
-                    } else {
-                        "Signing locally with signer-validated ASL motion"
-                    }
+                binding.statusText.text = if (localPlan.usesFingerspelling) {
+                    "Signing locally with verified signs and fingerspelling"
                 } else {
-                    "Development preview from PopSign training motion - fluent ASL review required"
+                    "Signing locally with signer-validated motion"
                 }
                 return
             }
@@ -417,13 +413,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun previewLastAvatarMotion() {
-        val gloss = lastRecognizedGloss
+        val typedGloss = binding.hearingMessageInput.text.toString()
+            .trim()
+            .lowercase(Locale.ROOT)
+            .takeIf { it.matches(Regex("[a-z0-9_]+")) }
+        val gloss = lastRecognizedGloss ?: typedGloss
         val clip = gloss?.let(avatarMotionStore::load)
         if (clip == null) {
-            showAvatarStage("No avatar motion captured yet. Record one isolated sign first.")
+            showAvatarStage("No reviewable motion found. Record a sign or type one exact gloss first.")
             binding.avatarView.clearMotion()
             return
         }
+        lastRecognizedGloss = gloss
+        binding.validateMotionButton.visibility = View.VISIBLE
         binding.avatarView.play(listOf(clip))
         val review = avatarMotionStore.loadReview(gloss)
         val status = if (clip.signerValidated && review != null) {

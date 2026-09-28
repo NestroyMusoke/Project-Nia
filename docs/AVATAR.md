@@ -17,6 +17,11 @@ Each accepted isolated-sign recording can be retargeted into a 64-frame local `.
 
 The **3D signer** button previews the latest motion. A fluent signer must watch the complete animation and explicitly approve it using **Signer-validate avatar motion**. Only approved clips are exposed to the online agent and permitted in generated replies.
 
+Packaged candidates can be commissioned without pretending they are replies:
+type one exact gloss such as `hello`, tap **3D signer**, inspect the draft, and
+use the validation action only when a fluent signer confirms it. The ordinary
+**Sign it** path continues to reject that candidate until approval is recorded.
+
 Approval records the reviewer's name, the sign language reviewed, the review
 time, optional notes, and the exact SHA-256 digest of the motion file. Replacing
 or changing that motion invalidates the approval automatically. A legacy motion
@@ -49,8 +54,10 @@ to `fs_a` through `fs_z` motions only when every required letter motion is
 present and signer-approved. Nia never drops an unsupported word and signs the
 remaining fragment as though it were a complete translation.
 
-Development builds may preview an attributed but unvalidated training motion.
-Release replies remain restricted to fluent-signer-approved motion files.
+Unvalidated training motion is never used as a text or agent reply, including
+in development builds. Draft motion can be inspected only through the explicit
+3D signer review workflow. Replies remain restricted to fluent-signer-approved
+motion files.
 
 ## Current boundary
 

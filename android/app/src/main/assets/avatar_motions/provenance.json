@@ -7,12 +7,67 @@
   "motions": [
     {
       "gloss": "hello",
+      "source_url": "https://signdata.cc.gatech.edu/data/popsign_v1_0/game/train/hello.tar",
+      "source_member": "hello/gtsignstudy4a.8049-hello-2023_01_26_11_46_03.879-0.mp4",
+      "source_split": "game/train",
+      "source_signer": 8049,
+      "source_sha256": "07553960c934a89362e7f2d22b1002c0acee832a5aa064abb51fa234535416a9",
+      "source_frames": 34,
+      "source_fps": 29.916666666666668,
+      "output_frames": 64,
+      "output_fps": 56,
+      "pose_coverage": 1.0,
+      "left_hand_coverage": 0.0,
+      "right_hand_coverage": 0.9411764705882353,
+      "face_coverage": 1.0,
+      "motion_file": "hello.niamotion",
+      "motion_sha256": "e462e8f26fdcb5103cedcf6bf3173bd547b9aeb010d1b03e0e54a2dc34141c9b",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "duration_seconds": 1.1364902506963788,
+        "thresholds": {
+          "minimum_source_frames": 12,
+          "minimum_pose_coverage": 0.75,
+          "minimum_primary_hand_coverage": 0.6,
+          "minimum_face_coverage": 0.7,
+          "minimum_duration_seconds": 0.5,
+          "maximum_duration_seconds": 5.0
+        }
+      },
+      "signer_validated": false
+    }
+  ],
+  "rejected_candidates": [
+    {
+      "gloss": "hello",
+      "source_url": "https://signdata.cc.gatech.edu/data/popsign_v1_0/game/train/hello.tar",
       "source_member": "hello/4a.8006-hello-2022_12_29_16_43_19.424-0.mp4",
       "source_split": "game/train",
       "source_signer": 8006,
       "source_sha256": "c6f032d16aefc0bc1e80ea6bcf4e672c9ac6946c5adc3c79945c2f1f42c20ca4",
-      "motion_file": "hello.niamotion",
-      "signer_validated": false
+      "source_frames": 51,
+      "source_fps": 29.916666666666668,
+      "pose_coverage": 1.0,
+      "left_hand_coverage": 0.0,
+      "right_hand_coverage": 0.35294117647058826,
+      "face_coverage": 1.0,
+      "rejection_reason": "best hand coverage 35.3% is below the 60% packaging threshold"
+    },
+    {
+      "gloss": "hello",
+      "source_url": "https://signdata.cc.gatech.edu/data/popsign_v1_0/game/train/hello.tar",
+      "source_member": "hello/gtsignstudy4a.8041-hello-2023_01_26_20_38_38.528-0.mp4",
+      "source_split": "game/train",
+      "source_signer": 8041,
+      "source_sha256": "1a7d96aebb98a6bc54505c9319beacb265b8a4e188d8eb17893fceaf7725d494",
+      "source_frames": 57,
+      "source_fps": 29.833333333333332,
+      "pose_coverage": 1.0,
+      "left_hand_coverage": 0.0,
+      "right_hand_coverage": 0.22807017543859648,
+      "face_coverage": 1.0,
+      "rejection_reason": "best hand coverage 22.8% is below the 60% packaging threshold"
     }
   ]
 }

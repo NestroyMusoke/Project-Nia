@@ -28,6 +28,20 @@ as an unapproved candidate. It may be exposed as a development preview, but it
 must not be presented as a reliable translation until a fluent ASL signer has
 reviewed the avatar output and explicitly approved it.
 
+Before packaging, the build tool also rejects candidates with fewer than 12
+frames, duration outside 0.5 to 5 seconds, pose coverage below 75%, best-hand
+coverage below 60%, or face coverage below 70%. These checks measure tracking
+quality only. Passing them does not prove linguistic correctness.
+
+The original bundled `hello` candidate was removed after this gate measured
+only 35.3% signing-hand coverage. Its source and rejection evidence remain in
+`provenance.json`; the failed `.niamotion` file is no longer shipped.
+
+The replacement `hello` candidate comes from a different PopSign training
+signer and passed the mechanical gate with 100% pose coverage, 94.1% signing-
+hand coverage, and 100% face coverage. It remains a draft until a fluent ASL
+signer reviews the rendered avatar and creates the hash-bound approval record.
+
 The motion generator and renderer may be improved against training recordings.
 The frozen TFLite classifier and its final evaluation artifacts must not be
 retrained, tuned, or selected against the final test set.

@@ -27,3 +27,15 @@ Avatar implementation added after the original verification record:
 - A new unit test covers fixed 64-frame avatar retargeting and verifies that captured motion defaults to unvalidated.
 - A backend unit test covers removal of invented or unavailable glosses.
 - These new Android tests and the live 3D appearance remain pending Android Studio/SDK 36 and a physical phone. No claim of signer validation or linguistic accuracy is made by the code alone.
+
+## Motion commissioning verification, 2026-09-28
+
+- Backend and motion-tool test suite: `8 passed`.
+- Python sources compile and motion provenance parses as valid JSON.
+- Two official PopSign `hello` training candidates were rejected for signing-
+  hand coverage of 35.3% and 22.8%.
+- A third signer candidate passed with 100% pose, 94.1% signing-hand, and 100%
+  face landmark coverage.
+- The passing candidate is packaged as an unvalidated draft. It is unavailable
+  to text and agent reply paths until a fluent signer reviews the rendered 3D
+  motion and records approval tied to the exact motion SHA-256.

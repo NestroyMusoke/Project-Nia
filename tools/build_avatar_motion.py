@@ -21,6 +21,12 @@ OUTPUT_FRAMES = 64
 POSE_COUNT = 33
 HAND_COUNT = 21
 FACE_COUNT = 478
+MINIMUM_SOURCE_FRAMES = 12
+MINIMUM_POSE_COVERAGE = 0.75
+MINIMUM_PRIMARY_HAND_COVERAGE = 0.60
+MINIMUM_FACE_COVERAGE = 0.70
+MINIMUM_DURATION_SECONDS = 0.50
+MAXIMUM_DURATION_SECONDS = 5.00
 
 
 def landmarks(value, count: int) -> np.ndarray:
@@ -123,12 +129,119 @@ def write_motion(path: Path, gloss: str, fps: int, pose, left, right, faces) -> 
             output.write(struct.pack(">fff", *map(float, faces[frame])))
 
 
+def evaluate_motion_quality(
+    source_frames: int,
+    source_fps: float,
+    pose_coverage: float,
+    left_hand_coverage: float,
+    right_hand_coverage: float,
+    face_coverage: float,
+) -> dict:
+    duration = source_frames / source_fps if source_fps > 0 else 0.0
+    issues: list[str] = []
+    if source_frames < MINIMUM_SOURCE_FRAMES:
+        issues.append(f"too few source frames: {source_frames} < {MINIMUM_SOURCE_FRAMES}")
+    if not MINIMUM_DURATION_SECONDS <= duration <= MAXIMUM_DURATION_SECONDS:
+        issues.append(
+            f"duration {duration:.2f}s is outside "
+            f"{MINIMUM_DURATION_SECONDS:.2f}-{MAXIMUM_DURATION_SECONDS:.2f}s"
+        )
+    if pose_coverage < MINIMUM_POSE_COVERAGE:
+        issues.append(f"pose coverage {pose_coverage:.1%} < {MINIMUM_POSE_COVERAGE:.0%}")
+    primary_hand = max(left_hand_coverage, right_hand_coverage)
+    if primary_hand < MINIMUM_PRIMARY_HAND_COVERAGE:
+        issues.append(
+            f"best hand coverage {primary_hand:.1%} < {MINIMUM_PRIMARY_HAND_COVERAGE:.0%}"
+        )
+    if face_coverage < MINIMUM_FACE_COVERAGE:
+        issues.append(f"face coverage {face_coverage:.1%} < {MINIMUM_FACE_COVERAGE:.0%}")
+    return {
+        "passed": not issues,
+        "issues": issues,
+        "duration_seconds": duration,
+        "thresholds": {
+            "minimum_source_frames": MINIMUM_SOURCE_FRAMES,
+            "minimum_pose_coverage": MINIMUM_POSE_COVERAGE,
+            "minimum_primary_hand_coverage": MINIMUM_PRIMARY_HAND_COVERAGE,
+            "minimum_face_coverage": MINIMUM_FACE_COVERAGE,
+            "minimum_duration_seconds": MINIMUM_DURATION_SECONDS,
+            "maximum_duration_seconds": MAXIMUM_DURATION_SECONDS,
+        },
+    }
+
+
+def update_provenance(path: Path, report: dict) -> None:
+    document = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {
+        "dataset": "PopSign ASL v1.0",
+        "category": "game",
+        "split": "train",
+        "license": "CC BY 4.0",
+        "data_card": "https://signdata.cc.gatech.edu/view/datasets/popsign_v1_0/index.html",
+        "motions": [],
+    }
+    entry = {
+        key: report[key]
+        for key in (
+            "gloss", "source_url", "source_member", "source_split", "source_signer",
+            "source_sha256", "source_frames", "source_fps", "output_frames", "output_fps",
+            "pose_coverage", "left_hand_coverage", "right_hand_coverage", "face_coverage",
+            "motion_file", "motion_sha256", "quality", "signer_validated",
+        )
+    }
+    motions = [motion for motion in document.get("motions", []) if motion.get("gloss") != report["gloss"]]
+    motions.append(entry)
+    document["motions"] = sorted(motions, key=lambda motion: motion["gloss"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def update_rejected_provenance(path: Path, report: dict) -> None:
+    document = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {
+        "dataset": "PopSign ASL v1.0",
+        "category": "game",
+        "split": "train",
+        "license": "CC BY 4.0",
+        "data_card": "https://signdata.cc.gatech.edu/view/datasets/popsign_v1_0/index.html",
+        "motions": [],
+    }
+    entry = {
+        key: report[key]
+        for key in (
+            "gloss", "source_url", "source_member", "source_split", "source_signer",
+            "source_sha256", "source_frames", "source_fps", "pose_coverage",
+            "left_hand_coverage", "right_hand_coverage", "face_coverage",
+        )
+    }
+    entry["rejection_reason"] = "; ".join(report["quality"]["issues"])
+    rejected = [
+        candidate for candidate in document.get("rejected_candidates", [])
+        if candidate.get("source_sha256") != report["source_sha256"]
+    ]
+    rejected.append(entry)
+    document["rejected_candidates"] = sorted(
+        rejected,
+        key=lambda candidate: (candidate["gloss"], candidate["source_sha256"]),
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("input", type=Path)
     parser.add_argument("gloss")
     parser.add_argument("--model", type=Path, default=Path("android/app/src/main/assets/holistic_landmarker.task"))
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--source-url", default="")
+    parser.add_argument("--source-member", default="")
+    parser.add_argument("--source-split", default="game/train")
+    parser.add_argument("--report-file", type=Path)
+    parser.add_argument("--provenance", type=Path)
+    parser.add_argument("--allow-low-quality", action="store_true")
     args = parser.parse_args()
     output_path = args.output or Path(f"android/app/src/main/assets/avatar_motions/{args.gloss.lower()}.niamotion")
 
@@ -170,7 +283,8 @@ def main() -> None:
     pose_raw = np.stack([frame[0] for frame in source_frames])
     left_raw = np.stack([frame[1] for frame in source_frames])
     right_raw = np.stack([frame[2] for frame in source_frames])
-    face_values = np.stack([face_pose(frame[3]) for frame in source_frames])
+    face_raw = np.stack([frame[3] for frame in source_frames])
+    face_values = np.stack([face_pose(frame) for frame in face_raw])
     pose = np.stack([normalize_group(pose_raw[i], pose_raw[i]) for i in range(len(source_frames))])
     left = np.stack([normalize_group(left_raw[i], pose_raw[i]) for i in range(len(source_frames))])
     right = np.stack([normalize_group(right_raw[i], pose_raw[i]) for i in range(len(source_frames))])
@@ -180,26 +294,59 @@ def main() -> None:
 
     duration = len(source_frames) / source_fps
     output_fps = max(1, min(120, round(OUTPUT_FRAMES / duration)))
-    write_motion(output_path, args.gloss.lower(), output_fps, pose, left, right, face_values)
     source_digest = hashlib.sha256(args.input.read_bytes()).hexdigest()
     signer_match = re.search(r"\.(\d+)-", args.input.name)
+    pose_coverage = float(np.isfinite(pose_raw).all(axis=2).mean())
+    left_hand_coverage = float(np.isfinite(left_raw).all(axis=2).mean())
+    right_hand_coverage = float(np.isfinite(right_raw).all(axis=2).mean())
+    face_coverage = float(np.isfinite(face_raw).all(axis=2).mean())
+    quality = evaluate_motion_quality(
+        len(source_frames),
+        source_fps,
+        pose_coverage,
+        left_hand_coverage,
+        right_hand_coverage,
+        face_coverage,
+    )
     report = {
         "gloss": args.gloss.lower(),
-        "source_member": args.input.name,
-        "source_split": "game/train",
+        "source_url": args.source_url,
+        "source_member": args.source_member or args.input.name,
+        "source_split": args.source_split,
         "source_signer": int(signer_match.group(1)) if signer_match else None,
         "source_sha256": source_digest,
         "source_frames": len(source_frames),
         "source_fps": source_fps,
         "output_frames": OUTPUT_FRAMES,
         "output_fps": output_fps,
-        "pose_coverage": float(np.isfinite(pose_raw).all(axis=2).mean()),
-        "left_hand_coverage": float(np.isfinite(left_raw).all(axis=2).mean()),
-        "right_hand_coverage": float(np.isfinite(right_raw).all(axis=2).mean()),
+        "pose_coverage": pose_coverage,
+        "left_hand_coverage": left_hand_coverage,
+        "right_hand_coverage": right_hand_coverage,
+        "face_coverage": face_coverage,
         "output": str(output_path),
+        "motion_file": output_path.name,
+        "quality": quality,
         "signer_validated": False,
     }
-    print(json.dumps(report, indent=2))
+    if not quality["passed"] and not args.allow_low_quality:
+        rendered_report = json.dumps(report, indent=2)
+        if args.report_file:
+            args.report_file.parent.mkdir(parents=True, exist_ok=True)
+            args.report_file.write_text(rendered_report + "\n", encoding="utf-8")
+        print(rendered_report)
+        if args.provenance:
+            update_rejected_provenance(args.provenance, report)
+        raise SystemExit("Motion candidate rejected by tracking-quality gate; no motion was written")
+
+    write_motion(output_path, args.gloss.lower(), output_fps, pose, left, right, face_values)
+    report["motion_sha256"] = hashlib.sha256(output_path.read_bytes()).hexdigest()
+    if args.provenance:
+        update_provenance(args.provenance, report)
+    rendered_report = json.dumps(report, indent=2)
+    if args.report_file:
+        args.report_file.parent.mkdir(parents=True, exist_ok=True)
+        args.report_file.write_text(rendered_report + "\n", encoding="utf-8")
+    print(rendered_report)
 
 
 if __name__ == "__main__":
