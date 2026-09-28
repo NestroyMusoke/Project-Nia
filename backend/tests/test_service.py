@@ -25,7 +25,7 @@ def test_malformed_response_fails_safe():
     assert parsed["goal_state"]["status"] == "clarifying"
 
 
-def test_unavailable_avatar_glosses_are_removed():
+def test_unavailable_avatar_gloss_fails_closed_instead_of_playing_a_fragment():
     parsed = {
         "message": "Please wait.",
         "sign_glosses": ["please", "invented", "wait"],
@@ -33,7 +33,21 @@ def test_unavailable_avatar_glosses_are_removed():
         "clarification_needed": False,
     }
     filtered = NiaAgentService._filter_sign_glosses(parsed, ["please", "wait"])
+    assert filtered["sign_glosses"] == []
+    assert filtered["clarification_needed"] is True
+    assert filtered["goal_state"]["status"] == "avatar_vocabulary_insufficient"
+
+
+def test_complete_supported_avatar_sequence_is_preserved():
+    parsed = {
+        "message": "Please wait.",
+        "sign_glosses": ["please", "wait"],
+        "goal_state": {},
+        "clarification_needed": False,
+    }
+    filtered = NiaAgentService._filter_sign_glosses(parsed, ["please", "wait"])
     assert filtered["sign_glosses"] == ["please", "wait"]
+    assert filtered["clarification_needed"] is False
 
 
 def test_pubsub_push_is_acknowledged():

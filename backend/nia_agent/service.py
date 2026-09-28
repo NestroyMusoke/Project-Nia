@@ -100,9 +100,19 @@ class NiaAgentService:
     def _filter_sign_glosses(parsed: dict, allowed: list[str]) -> dict:
         filtered = dict(parsed)
         allowed_set = set(allowed)
-        filtered["sign_glosses"] = [
-            gloss for gloss in parsed.get("sign_glosses", []) if gloss in allowed_set
-        ]
+        requested = [str(gloss) for gloss in parsed.get("sign_glosses", [])]
+        # Never remove unknown signs and play the remaining fragment as though
+        # it still communicates the complete response. Fail closed so the
+        # phone can explain that its approved motion vocabulary is insufficient.
+        if any(gloss not in allowed_set for gloss in requested):
+            filtered["sign_glosses"] = []
+            filtered["clarification_needed"] = True
+            goal = dict(filtered.get("goal_state") or {})
+            goal["status"] = "avatar_vocabulary_insufficient"
+            goal["next_action"] = "request a supported rephrasing or add reviewed motion"
+            filtered["goal_state"] = goal
+        else:
+            filtered["sign_glosses"] = requested
         return filtered
 
     @staticmethod

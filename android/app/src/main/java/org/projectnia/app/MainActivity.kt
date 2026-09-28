@@ -9,6 +9,8 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.view.View
+import android.widget.EditText
+import android.widget.LinearLayout
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -259,7 +261,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             }
             if (clips.size == localPlan.glosses.size) {
                 binding.avatarView.play(clips)
-                showAvatarStage("ASL preview: ${localPlan.glosses.joinToString(" ").uppercase(Locale.ROOT)}")
+                showAvatarStage("Sign preview: ${localPlan.glosses.joinToString(" ").uppercase(Locale.ROOT)}")
                 binding.statusText.text = if (clips.all { it.signerValidated }) {
                     if (localPlan.usesFingerspelling) {
                         "Signing locally with verified signs and fingerspelling"
@@ -423,26 +425,70 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             return
         }
         binding.avatarView.play(listOf(clip))
-        val status = if (clip.signerValidated) "signer-validated" else "draft - validation required"
+        val review = avatarMotionStore.loadReview(gloss)
+        val status = if (clip.signerValidated && review != null) {
+            "${review.signLanguage} reviewed by ${review.reviewerName}"
+        } else {
+            "draft - fluent signer review required"
+        }
         showAvatarStage("${clip.gloss.uppercase(Locale.ROOT)} | $status")
     }
 
     private fun confirmSignerValidation() {
         val gloss = lastRecognizedGloss ?: return
-        AlertDialog.Builder(this)
+        val reviewerInput = EditText(this).apply {
+            hint = "Fluent signer's name"
+            contentDescription = hint
+        }
+        val languageInput = EditText(this).apply {
+            hint = "Sign language, for example ASL or USL"
+            contentDescription = hint
+        }
+        val notesInput = EditText(this).apply {
+            hint = "Review notes (optional)"
+            contentDescription = hint
+            maxLines = 3
+        }
+        val padding = (20 * resources.displayMetrics.density).toInt()
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, 0, padding, 0)
+            addView(reviewerInput)
+            addView(languageInput)
+            addView(notesInput)
+        }
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Validate this sign motion?")
             .setMessage(
                 "Only continue if a fluent signer has watched the full 3D motion and confirms " +
-                    "that it accurately communicates '$gloss'. This approval controls whether Nia may use it in replies."
+                    "that it accurately communicates '$gloss'. The review will be tied to this exact motion file."
             )
-            .setPositiveButton("Signer confirms") { _, _ ->
-                if (avatarMotionStore.markSignerValidated(gloss)) {
-                    binding.statusText.text = "$gloss is approved for 3D replies"
-                    previewLastAvatarMotion()
+            .setView(form)
+            .setPositiveButton("Signer confirms", null)
+            .setNegativeButton("Keep as draft", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val reviewer = reviewerInput.text.toString().trim()
+                val language = languageInput.text.toString().trim()
+                when {
+                    reviewer.length < 2 -> reviewerInput.error = "Enter the fluent signer's name"
+                    language.length < 2 -> languageInput.error = "Enter the sign language reviewed"
+                    avatarMotionStore.markSignerValidated(
+                        gloss = gloss,
+                        reviewerName = reviewer,
+                        signLanguage = language,
+                        notes = notesInput.text.toString(),
+                    ) -> {
+                        binding.statusText.text = "$gloss approved for $language replies by $reviewer"
+                        dialog.dismiss()
+                        previewLastAvatarMotion()
+                    }
+                    else -> binding.statusText.text = "Could not save the signer review"
                 }
             }
-            .setNegativeButton("Keep as draft", null)
-            .show()
+        }
+        dialog.show()
     }
 
     private fun showCameraStage() {

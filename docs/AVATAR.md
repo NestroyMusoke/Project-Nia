@@ -17,11 +17,20 @@ Each accepted isolated-sign recording can be retargeted into a 64-frame local `.
 
 The **3D signer** button previews the latest motion. A fluent signer must watch the complete animation and explicitly approve it using **Signer-validate avatar motion**. Only approved clips are exposed to the online agent and permitted in generated replies.
 
+Approval records the reviewer's name, the sign language reviewed, the review
+time, optional notes, and the exact SHA-256 digest of the motion file. Replacing
+or changing that motion invalidates the approval automatically. A legacy motion
+with only a boolean approval flag is treated as unapproved until it receives an
+auditable review.
+
 ## Safety contract
 
 - Gemini chooses only from the exact signer-validated gloss list supplied by the phone.
-- The backend filters the returned list again; unknown glosses are discarded.
+- The backend validates the returned list again. If any gloss is unavailable,
+  the entire animation response is rejected rather than playing a misleading
+  partial sentence.
 - Draft clips never play as agent replies.
+- Approval is valid only while its review digest matches the exact motion file.
 - Correcting a recognition discards the wrongly labelled draft before saving the corrected one.
 - An empty gloss list is required when the available vocabulary cannot faithfully communicate the response.
 - A gloss sequence is not automatically assumed to be grammatical ASL. Fluent-sign review remains required.
