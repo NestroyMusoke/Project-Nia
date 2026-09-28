@@ -103,6 +103,19 @@ class AvatarMotionStore(private val context: Context) {
         .filter { !validatedOnly || it.signerValidated }
         .mapTo(linkedSetOf()) { it.gloss }
 
+    fun inventory(): List<MotionLibraryEntry> = availableGlosses(validatedOnly = false)
+        .mapNotNull { gloss ->
+            val clip = load(gloss) ?: return@mapNotNull null
+            val review = loadReview(gloss)
+            MotionLibraryEntry(
+                gloss = clip.gloss,
+                approved = clip.signerValidated,
+                signLanguage = review?.signLanguage,
+                reviewerName = review?.reviewerName,
+            )
+        }
+        .sortedWith(compareByDescending<MotionLibraryEntry> { !it.approved }.thenBy { it.gloss })
+
     private fun write(clip: AvatarMotionClip) {
         val destination = fileFor(clip.gloss)
         val temporary = File(directory, destination.name + ".tmp")

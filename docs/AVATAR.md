@@ -17,6 +17,12 @@ Each accepted isolated-sign recording can be retargeted into a 64-frame local `.
 
 The **3D signer** button previews the latest motion. A fluent signer must watch the complete animation and explicitly approve it using **Signer-validate avatar motion**. Only approved clips are exposed to the online agent and permitted in generated replies.
 
+The bottom panel continuously reports the avatar library totals. **Review avatar
+motion library** opens an offline list in which every item is visibly labelled
+`DRAFT` or `APPROVED`. Selecting an item previews the exact stored motion. The
+approval control is shown only for drafts, so simply previewing an already
+approved motion cannot silently change its state.
+
 Packaged candidates can be commissioned without pretending they are replies:
 type one exact gloss such as `hello`, tap **3D signer**, inspect the draft, and
 use the validation action only when a fluent signer confirms it. The ordinary
@@ -42,7 +48,7 @@ auditable review.
 
 ## Commissioning the 32-sign avatar vocabulary
 
-For each supported sign, record a clean isolated performance with the upper body, hands, and face visible. Correct the recognized label if necessary, open **3D signer**, inspect the complete motion from the front, and approve it only after fluent-sign review. Repeat any clip with poor finger shape, occlusion, body position, timing, or facial information.
+For each supported sign, record a clean isolated performance with the upper body, hands, and face visible. Correct the recognized label if necessary, open **Review avatar motion library**, select the draft, inspect the complete motion from the front, and approve it only after fluent-sign review. Repeat any clip with poor finger shape, occlusion, body position, timing, or facial information.
 
 The frozen classifier is not retrained by this process. Avatar motion files are a separate presentation library and do not alter the final-test evidence.
 

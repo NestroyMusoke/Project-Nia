@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import org.projectnia.app.agent.NiaAgentClient
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
+import org.projectnia.app.avatar.MotionLibraryPresenter
 import org.projectnia.app.avatar.SignedMessagePlanner
 import org.projectnia.app.databinding.ActivityMainBinding
 import org.projectnia.app.ml.ConfidenceGate
@@ -92,8 +93,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.cameraModeButton.setOnClickListener { showCameraStage() }
         binding.avatarModeButton.setOnClickListener { previewLastAvatarMotion() }
         binding.validateMotionButton.setOnClickListener { confirmSignerValidation() }
+        binding.reviewMotionsButton.setOnClickListener { showMotionLibrary() }
         binding.signMessageButton.setOnClickListener { requestSignedMessage() }
         binding.talkButton.setOnClickListener { requestVoiceInput() }
+        refreshMotionLibraryStatus()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera()
@@ -196,7 +199,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         recognition.margin * 100f,
                     )
                     binding.teachButton.visibility = View.VISIBLE
-                    binding.validateMotionButton.visibility = if (lastRecognizedGloss != null) View.VISIBLE else View.GONE
+                    binding.validateMotionButton.visibility = if (
+                        lastRecognizedGloss?.let { avatarMotionStore.load(it)?.signerValidated == false } == true
+                    ) View.VISIBLE else View.GONE
+                    refreshMotionLibraryStatus()
                     binding.captureButton.isEnabled = true
                     binding.captureButton.text = "Record another sign"
                 }
@@ -217,6 +223,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val count = personalization.count(classId)
                 lastRecognizedGloss?.takeIf { it != correctedGloss }?.let(avatarMotionStore::discardDraft)
                 saveAvatarDraft(correctedGloss, lastCapturedFrames)
+                refreshMotionLibraryStatus()
                 binding.statusText.text = if (saved) {
                     "Saved calibration: $correctedGloss ($count/${PersonalizationMemory.SHOTS_PER_SIGN}). " +
                         "Personalization activates after all 32 signs are calibrated."
@@ -409,7 +416,33 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         runCatching {
             avatarMotionStore.saveDraft(AvatarMotionRetargeter.fromLandmarks(gloss, frames))
             lastRecognizedGloss = gloss
+            refreshMotionLibraryStatus()
         }
+    }
+
+    private fun refreshMotionLibraryStatus() {
+        val summary = MotionLibraryPresenter.summarize(avatarMotionStore.inventory())
+        binding.motionLibraryText.text = summary.displayText()
+    }
+
+    private fun showMotionLibrary() {
+        val entries = avatarMotionStore.inventory()
+        refreshMotionLibraryStatus()
+        if (entries.isEmpty()) {
+            binding.statusText.text = "No avatar motions yet. Record an isolated sign to create a review draft."
+            return
+        }
+        val labels = entries.map(MotionLibraryPresenter::label).toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Avatar motion library")
+            .setItems(labels) { _, index ->
+                val selected = entries[index]
+                lastRecognizedGloss = selected.gloss
+                binding.hearingMessageInput.setText(selected.gloss)
+                previewLastAvatarMotion()
+            }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private fun previewLastAvatarMotion() {
@@ -425,7 +458,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             return
         }
         lastRecognizedGloss = gloss
-        binding.validateMotionButton.visibility = View.VISIBLE
+        binding.validateMotionButton.visibility = if (clip.signerValidated) View.GONE else View.VISIBLE
         binding.avatarView.play(listOf(clip))
         val review = avatarMotionStore.loadReview(gloss)
         val status = if (clip.signerValidated && review != null) {
@@ -483,6 +516,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         notes = notesInput.text.toString(),
                     ) -> {
                         binding.statusText.text = "$gloss approved for $language replies by $reviewer"
+                        refreshMotionLibraryStatus()
                         dialog.dismiss()
                         previewLastAvatarMotion()
                     }

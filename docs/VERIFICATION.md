@@ -39,3 +39,15 @@ Avatar implementation added after the original verification record:
 - The passing candidate is packaged as an unvalidated draft. It is unavailable
   to text and agent reply paths until a fluent signer reviews the rendered 3D
   motion and records approval tied to the exact motion SHA-256.
+
+## Offline review-library verification, 2026-09-28
+
+- Added a phone-local inventory of all avatar motions with unambiguous Draft
+  and Approved labels, counts, and direct selection for preview.
+- Approved clips hide the approval action; draft clips remain unavailable to
+  normal text and agent reply paths.
+- The pure Kotlin presentation model compiles independently and its three JUnit
+  tests pass.
+- A complete Gradle rerun from this Codex environment was blocked by its local
+  loopback restriction. Run `gradlew.bat testDebugUnitTest` in Windows CMD
+  before committing this milestone.
