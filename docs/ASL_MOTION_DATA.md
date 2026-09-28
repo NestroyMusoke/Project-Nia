@@ -42,6 +42,18 @@ signer and passed the mechanical gate with 100% pose coverage, 94.1% signing-
 hand coverage, and 100% face coverage. It remains a draft until a fluent ASL
 signer reviews the rendered avatar and creates the hash-bound approval record.
 
+## Batch commissioning
+
+`tools/commission_avatar_vocabulary.py` automates candidate selection for a
+small vocabulary. For each requested gloss it walks through independent
+PopSign training examples, records failed candidates, stops at the first clip
+that passes the mechanical gate, and packages that clip as an unvalidated
+draft. Existing passing drafts are preserved unless `--force` is supplied.
+
+The default batch is `hello please thankyou yes no wait`. Batch success means
+only that MediaPipe tracked the source reliably. Every resulting animation must
+still pass fluent-signer review on the rendered avatar.
+
 The motion generator and renderer may be improved against training recordings.
 The frozen TFLite classifier and its final evaluation artifacts must not be
 retrained, tuned, or selected against the final test set.
