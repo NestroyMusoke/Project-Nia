@@ -5,6 +5,9 @@ local.properties
 *.iml
 .env
 .venv/
+.cache/
 __pycache__/
 .pytest_cache/
-
+.codex-*
+android/app/src/main/assets/nia_avatar_alicia.vrm
+android/app/src/main/assets/nia_avatar_seed.vrm

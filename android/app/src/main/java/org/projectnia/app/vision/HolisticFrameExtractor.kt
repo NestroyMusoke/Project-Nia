@@ -17,9 +17,9 @@ class HolisticFrameExtractor(context: Context) : Closeable {
         HolisticLandmarker.HolisticLandmarkerOptions.builder()
             .setBaseOptions(BaseOptions.builder().setModelAssetPath("holistic_landmarker.task").build())
             .setMinFaceDetectionConfidence(0.5f)
-            .setMinFaceLandmarksConfidence(0.5f)
+            .setMinFacePresenceConfidence(0.5f)
             .setMinPoseDetectionConfidence(0.5f)
-            .setMinPoseLandmarksConfidence(0.5f)
+            .setMinPosePresenceConfidence(0.5f)
             .setMinHandLandmarksConfidence(0.5f)
             .build(),
     )
@@ -36,11 +36,30 @@ class HolisticFrameExtractor(context: Context) : Closeable {
 
     override fun close() = landmarker.close()
 
-    private fun HolisticLandmarkerResult.toFrame(): LandmarkFrame = LandmarkFrame(
-        leftHand = leftHandLandmarks().map { Point3(it.x(), it.y(), it.z()) },
-        rightHand = rightHandLandmarks().map { Point3(it.x(), it.y(), it.z()) },
-        pose = poseLandmarks().map { Point3(it.x(), it.y(), it.z()) },
-        face = faceLandmarks().map { Point3(it.x(), it.y(), it.z()) },
-    )
-}
+    private fun HolisticLandmarkerResult.toFrame(): LandmarkFrame {
+        val left = leftHandLandmarks()
+        val right = rightHandLandmarks()
+        val body = poseLandmarks()
+        val facial = faceLandmarks()
+        return LandmarkFrame(
+            leftHand = List(HAND_LANDMARK_COUNT) { index ->
+                left.getOrNull(index)?.let { Point3(it.x(), it.y(), it.z()) }
+            },
+            rightHand = List(HAND_LANDMARK_COUNT) { index ->
+                right.getOrNull(index)?.let { Point3(it.x(), it.y(), it.z()) }
+            },
+            pose = List(POSE_LANDMARK_COUNT) { index ->
+                body.getOrNull(index)?.let { Point3(it.x(), it.y(), it.z()) }
+            },
+            face = List(FACE_LANDMARK_COUNT) { index ->
+                facial.getOrNull(index)?.let { Point3(it.x(), it.y(), it.z()) }
+            },
+        )
+    }
 
+    private companion object {
+        const val HAND_LANDMARK_COUNT = 21
+        const val POSE_LANDMARK_COUNT = 33
+        const val FACE_LANDMARK_COUNT = 478
+    }
+}

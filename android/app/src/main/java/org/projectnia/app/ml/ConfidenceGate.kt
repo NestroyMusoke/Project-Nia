@@ -15,6 +15,7 @@ class ConfidenceGate(
 ) {
     fun decide(probabilities: FloatArray): Recognition {
         require(probabilities.size == NiaVocabulary.labels.size)
+        require(probabilities.all { it.isFinite() }) { "Model probabilities must be finite" }
         val ranked = probabilities.indices.sortedByDescending { probabilities[it] }
         val top = ranked[0]
         val second = ranked[1]
@@ -29,4 +30,3 @@ class ConfidenceGate(
         )
     }
 }
-

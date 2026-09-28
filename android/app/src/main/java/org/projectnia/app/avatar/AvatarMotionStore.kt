@@ -7,7 +7,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-class AvatarMotionStore(context: Context) {
+class AvatarMotionStore(private val context: Context) {
     private val directory = File(context.filesDir, "avatar_motions").also { it.mkdirs() }
 
     fun saveDraft(clip: AvatarMotionClip) = write(clip.copy(signerValidated = false))
@@ -25,9 +25,14 @@ class AvatarMotionStore(context: Context) {
 
     fun load(gloss: String): AvatarMotionClip? {
         val file = fileFor(gloss)
-        if (!file.exists()) return null
+        val stream = if (file.exists()) {
+            file.inputStream()
+        } else {
+            runCatching { context.assets.open("$ASSET_DIRECTORY/${file.name}") }.getOrNull()
+                ?: return null
+        }
         return runCatching {
-            DataInputStream(file.inputStream().buffered()).use { input ->
+            DataInputStream(stream.buffered()).use { input ->
                 require(input.readInt() == FILE_VERSION)
                 val storedGloss = input.readUTF()
                 val validated = input.readBoolean()
@@ -46,10 +51,14 @@ class AvatarMotionStore(context: Context) {
         }.getOrNull()
     }
 
-    fun availableGlosses(validatedOnly: Boolean = true): Set<String> = directory
-        .listFiles { file -> file.extension == EXTENSION }
-        .orEmpty()
-        .mapNotNull { file -> load(file.nameWithoutExtension) }
+    fun availableGlosses(validatedOnly: Boolean = true): Set<String> = (
+        directory.listFiles { file -> file.extension == EXTENSION }.orEmpty().map { it.nameWithoutExtension } +
+            context.assets.list(ASSET_DIRECTORY).orEmpty()
+                .filter { it.endsWith(".$EXTENSION") }
+                .map { it.substringBeforeLast('.') }
+        )
+        .distinct()
+        .mapNotNull(::load)
         .filter { !validatedOnly || it.signerValidated }
         .mapTo(linkedSetOf()) { it.gloss }
 
@@ -105,7 +114,10 @@ class AvatarMotionStore(context: Context) {
     }
 
     private companion object {
-        const val FILE_VERSION = 2
+        // Version 5 uses Alicia's camera-facing basis and converts MediaPipe's
+        // downward screen Y axis into the avatar's upward world Y axis.
+        const val FILE_VERSION = 5
         const val EXTENSION = "niamotion"
+        const val ASSET_DIRECTORY = "avatar_motions"
     }
 }

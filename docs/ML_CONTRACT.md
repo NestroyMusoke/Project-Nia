@@ -33,9 +33,19 @@ The app discovers outputs by shape, not array order:
 - softmax across 32 classes;
 - `0.35 × general probabilities + 0.65 × prototype probabilities`.
 
-The published personalized result applies only to the complete `3 × 32 = 96` calibration protocol. Partial incremental memory is useful product behavior but is not covered by the 92.11% evaluation claim.
+The published personalized result applies only to the complete `3 × 32 = 96`
+calibration protocol. The app may collect partial calibration memory, but it
+does not blend that memory into predictions until the complete support set is
+present. This prevents a partially represented prototype softmax from changing
+the frozen classifier in a way the published evaluation never measured.
+
+## Capture quality
+
+Before preprocessing, the app requires at least 12 captured frames, a usable
+hand in at least 60% of frames, and both shoulders in at least 70% of frames.
+Failed captures produce actionable framing guidance and do not run inference.
+These are operational camera checks and were not selected on the final test set.
 
 ## Confidence
 
 The app's `0.55` top-probability and `0.12` top-two margin defaults are conservative product settings, not values selected on the final test set. Validate or calibrate them only with new field/DEV data.
-

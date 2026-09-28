@@ -14,6 +14,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
+        ndk {
+            // The connected Galaxy A17 and current Project Nia target are
+            // arm64. Release App Bundles can add per-ABI delivery later.
+            abiFilters += "arm64-v8a"
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField(
             "String",
@@ -54,8 +60,18 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$cameraX")
     implementation("androidx.camera:camera-view:$cameraX")
 
-    implementation("com.google.mediapipe:tasks-vision:1.0.0")
+    implementation("com.google.mediapipe:tasks-vision:1.0.0") {
+        // HolisticLandmarker calls the covariant Any.Builder.build(): Any API.
+        // The lite well-known-type builder does not expose that method on Android.
+        exclude(group = "com.google.protobuf", module = "protobuf-javalite")
+    }
+    implementation("com.google.protobuf:protobuf-java:4.26.1")
     implementation("com.google.ai.edge.litert:litert:2.2.0")
+
+    val filament = "1.75.0"
+    implementation("com.google.android.filament:filament-android:$filament")
+    implementation("com.google.android.filament:gltfio-android:$filament")
+    implementation("com.google.android.filament:filament-utils-android:$filament")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test:2.2.20")

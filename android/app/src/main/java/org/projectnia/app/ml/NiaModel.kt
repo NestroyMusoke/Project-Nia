@@ -4,6 +4,8 @@ import android.content.Context
 import org.tensorflow.lite.Interpreter
 import java.io.Closeable
 import java.io.FileInputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 
@@ -21,7 +23,12 @@ class NiaModel(context: Context) : Closeable {
 
     private val interpreter = Interpreter(
         mapAsset(context, MODEL_ASSET),
-        Interpreter.Options().setNumThreads(4),
+        Interpreter.Options()
+            .setNumThreads(4)
+            // This model's runtime reshape is not supported by XNNPack on the
+            // Galaxy A17. The standard CPU kernels preserve the frozen model
+            // outputs and support its fixed 64 x 272 input tensor.
+            .setUseXNNPACK(false),
     ).apply {
         resizeInput(0, intArrayOf(1, V3Preprocessor.SEQUENCE_LENGTH, V3Preprocessor.FEATURE_COUNT))
         allocateTensors()
@@ -45,14 +52,25 @@ class NiaModel(context: Context) : Closeable {
         require(features.size == V3Preprocessor.SEQUENCE_LENGTH)
         require(features.all { row -> row.size == V3Preprocessor.FEATURE_COUNT && row.all { it.isFinite() } })
 
-        val probabilities = Array(1) { FloatArray(CLASS_COUNT) }
-        val embedding = Array(1) { FloatArray(EMBEDDING_SIZE) }
+        val input = directFloatBuffer(V3Preprocessor.SEQUENCE_LENGTH * V3Preprocessor.FEATURE_COUNT)
+        features.forEach(input::put)
+        input.rewind()
+
+        val probabilityBuffer = directFloatBuffer(CLASS_COUNT)
+        val embeddingBuffer = directFloatBuffer(EMBEDDING_SIZE)
         val outputs = mutableMapOf<Int, Any>(
-            probabilityOutputIndex to probabilities,
-            embeddingOutputIndex to embedding,
+            probabilityOutputIndex to probabilityBuffer,
+            embeddingOutputIndex to embeddingBuffer,
         )
-        interpreter.runForMultipleInputsOutputs(arrayOf(features), outputs)
-        return ModelOutput(probabilities[0], embedding[0])
+        interpreter.runForMultipleInputsOutputs(arrayOf(input), outputs)
+
+        val probabilities = FloatArray(CLASS_COUNT)
+        val embedding = FloatArray(EMBEDDING_SIZE)
+        probabilityBuffer.rewind()
+        embeddingBuffer.rewind()
+        probabilityBuffer.get(probabilities)
+        embeddingBuffer.get(embedding)
+        return ModelOutput(probabilities, embedding)
     }
 
     override fun close() = interpreter.close()
@@ -63,4 +81,9 @@ class NiaModel(context: Context) : Closeable {
             channel.map(FileChannel.MapMode.READ_ONLY, descriptor.startOffset, descriptor.declaredLength)
         }.also { descriptor.close() }
     }
+
+    private fun directFloatBuffer(elementCount: Int) = ByteBuffer
+        .allocateDirect(elementCount * Float.SIZE_BYTES)
+        .order(ByteOrder.nativeOrder())
+        .asFloatBuffer()
 }

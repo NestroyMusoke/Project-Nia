@@ -4,5 +4,5 @@
     <color name="nia_primary_dark">#183B2D</color>
     <color name="nia_accent">#F4B942</color>
     <color name="nia_surface">#F7F4EC</color>
+    <color name="nia_text_hint">#66766F</color>
 </resources>
-

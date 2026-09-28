@@ -30,6 +30,12 @@ class PersonalizationMemory {
     @Synchronized
     fun apply(generalProbabilities: FloatArray, embedding: FloatArray): FloatArray {
         require(generalProbabilities.size == NiaModel.CLASS_COUNT)
+        require(generalProbabilities.all { it.isFinite() })
+        require(embedding.size == NiaModel.EMBEDDING_SIZE)
+        // The frozen evaluation blended a complete 3-shot support set covering
+        // every class. A partial support set assigns artificial probability to
+        // unrepresented classes and must not be described as that protocol.
+        if (!isFrozenProtocolComplete()) return generalProbabilities.copyOf()
         val query = normalize(embedding)
         val scores = FloatArray(NiaModel.CLASS_COUNT)
         examples.indices.forEach { classId ->
@@ -51,6 +57,7 @@ class PersonalizationMemory {
     fun count(classId: Int): Int = examples[classId].size
     fun hasAny(): Boolean = examples.any { it.isNotEmpty() }
     fun isFrozenProtocolComplete(): Boolean = examples.all { it.size == SHOTS_PER_SIGN }
+    fun completedClassCount(): Int = examples.count { it.size == SHOTS_PER_SIGN }
 
     @Synchronized
     fun snapshot(): List<List<FloatArray>> = examples.map { classExamples ->

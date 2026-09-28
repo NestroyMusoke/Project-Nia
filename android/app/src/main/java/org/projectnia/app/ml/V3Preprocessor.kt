@@ -37,17 +37,21 @@ class V3Preprocessor {
 
         val leftXyz = extract(rawFrames, { it.leftHand }, 21, 3)
         val rightXyz = extract(rawFrames, { it.rightHand }, 21, 3)
+        val leftXy = extract(rawFrames, { it.leftHand }, 21, 2)
+        val rightXy = extract(rawFrames, { it.rightHand }, 21, 2)
         val poseXy = extractSelected(rawFrames, { it.pose }, POSE_INDICES, 2)
         val lipsXy = extractSelected(rawFrames, { it.face }, LIP_INDICES, 2)
 
-        var leftPresence = presence(leftXyz, 2)
-        var rightPresence = presence(rightXyz, 2)
+        var leftPresence = presence(leftXyz, 3)
+        var rightPresence = presence(rightXyz, 3)
         var posePresence = presence(poseXy, 2)
         var lipsPresence = presence(lipsXy, 2)
 
         val crop = cropBounds(leftPresence, rightPresence)
         val left = slice(leftXyz, crop.first, crop.second)
         val right = slice(rightXyz, crop.first, crop.second)
+        val leftBody = slice(leftXy, crop.first, crop.second)
+        val rightBody = slice(rightXy, crop.first, crop.second)
         val pose = slice(poseXy, crop.first, crop.second)
         val lips = slice(lipsXy, crop.first, crop.second)
         leftPresence = leftPresence.copyOfRange(crop.first, crop.second)
@@ -55,7 +59,7 @@ class V3Preprocessor {
         posePresence = posePresence.copyOfRange(crop.first, crop.second)
         lipsPresence = lipsPresence.copyOfRange(crop.first, crop.second)
 
-        val normalized = normalizeBodyXy(left, right, pose, lips)
+        val normalized = normalizeBodyXy(leftBody, rightBody, pose, lips)
         var body = concatenateBody(normalized)
         var localLeft = handLocal3d(left)
         var localRight = handLocal3d(right)
@@ -205,7 +209,7 @@ class V3Preprocessor {
     private fun handLocal3d(hand: Array<FloatArray>): Array<FloatArray> = Array(hand.size) { t ->
         val out = FloatArray(63) { Float.NaN }
         val wrist = floatArrayOf(hand[t][0], hand[t][1], hand[t][2])
-        val distances = intArrayOf(5, 9, 13, 17).mapNotNull { index ->
+        val distances = listOf(5, 9, 13, 17).mapNotNull { index ->
             val offset = index * 3
             val p = floatArrayOf(hand[t][offset], hand[t][offset + 1], hand[t][offset + 2])
             if ((p + wrist).all { it.isFinite() }) {

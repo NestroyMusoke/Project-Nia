@@ -17,9 +17,13 @@ class AvatarMotionRetargeterTest {
         assertEquals(64, clip.frames.size)
         assertFalse(clip.signerValidated)
         val first = assertNotNull(clip.frames.first().pose[11])
+        val oppositeShoulder = assertNotNull(clip.frames.first().pose[12])
+        val firstWrist = assertNotNull(clip.frames.first().rightHand[0])
         val lastWrist = assertNotNull(clip.frames.last().rightHand[0])
         assertTrue(first.x.isFinite() && first.y.isFinite() && first.z.isFinite())
-        assertTrue(lastWrist.x > first.x)
+        assertEquals(0.55f, (first.y + oppositeShoulder.y) / 2f, 0.0001f)
+        assertEquals(1f, first.x - oppositeShoulder.x, 0.0001f)
+        assertTrue(lastWrist.x < firstWrist.x)
     }
 
     private fun frame(progress: Float): LandmarkFrame {

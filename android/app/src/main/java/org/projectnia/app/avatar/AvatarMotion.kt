@@ -91,23 +91,31 @@ object AvatarMotionRetargeter {
         val leftShoulder = frame.pose.getOrNull(11)?.takeIf(::finite)
         val rightShoulder = frame.pose.getOrNull(12)?.takeIf(::finite)
         if (leftShoulder != null && rightShoulder != null) {
-            val scale = hypot(leftShoulder.x - rightShoulder.x, leftShoulder.y - rightShoulder.y)
-                .coerceAtLeast(0.05f)
+            val dx = leftShoulder.x - rightShoulder.x
+            val dy = rightShoulder.y - leftShoulder.y
+            val scale = hypot(dx, dy).coerceAtLeast(0.05f)
             return BodyAnchor(
                 (leftShoulder.x + rightShoulder.x) / 2f,
                 (leftShoulder.y + rightShoulder.y) / 2f,
                 (leftShoulder.z + rightShoulder.z) / 2f,
                 scale,
+                dx / scale,
+                dy / scale,
             )
         }
-        return BodyAnchor(0.5f, 0.42f, 0f, 0.28f)
+        return BodyAnchor(0.5f, 0.42f, 0f, 0.28f, 1f, 0f)
     }
 
-    private fun normalize(point: Point3, anchor: BodyAnchor): AvatarJoint = AvatarJoint(
-        x = (point.x - anchor.x) / anchor.scale,
-        y = (anchor.y - point.y) / anchor.scale,
-        z = -(point.z - anchor.z) / anchor.scale,
-    )
+    private fun normalize(point: Point3, anchor: BodyAnchor): AvatarJoint {
+        val x = point.x - anchor.x
+        val y = anchor.y - point.y
+        return AvatarJoint(
+            x = ((x * anchor.shoulderX + y * anchor.shoulderY) / anchor.scale).coerceIn(-2.2f, 2.2f),
+            y = (SHOULDER_HEIGHT + (-x * anchor.shoulderY + y * anchor.shoulderX) / anchor.scale)
+                .coerceIn(-1.9f, 2.1f),
+            z = (-(point.z - anchor.z) / anchor.scale).coerceIn(-0.9f, 0.9f),
+        )
+    }
 
     private fun finite(point: Point3): Boolean =
         point.x.isFinite() && point.y.isFinite() && point.z.isFinite()
@@ -146,5 +154,9 @@ object AvatarMotionRetargeter {
         val y: Float,
         val z: Float,
         val scale: Float,
+        val shoulderX: Float,
+        val shoulderY: Float,
     )
+
+    private const val SHOULDER_HEIGHT = 0.55f
 }

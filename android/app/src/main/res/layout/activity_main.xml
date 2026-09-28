@@ -19,7 +19,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <org.projectnia.app.avatar.SigningAvatarView
+        <org.projectnia.app.avatar.RiggedSigningAvatarView
             android:id="@+id/avatarView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -93,6 +93,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text=""
+            android:textColor="@color/nia_primary_dark"
             android:textSize="14sp" />
 
         <LinearLayout
@@ -110,7 +111,17 @@
                 android:hint="Message for the 3D signer"
                 android:imeOptions="actionDone"
                 android:inputType="textCapSentences|textMultiLine"
-                android:maxLines="2" />
+                android:maxLines="2"
+                android:textColor="@color/nia_primary_dark"
+                android:textColorHint="@color/nia_text_hint" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/talkButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Talk" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/signMessageButton"
