@@ -9,11 +9,11 @@ class MotionLibraryTest {
         val entries = listOf(
             MotionLibraryEntry("hello", approved = false),
             MotionLibraryEntry("thanks", approved = true, signLanguage = "USL", reviewerName = "Amina"),
-            MotionLibraryEntry("please", approved = false),
+            MotionLibraryEntry("please", approved = false, available = false),
         )
 
         assertEquals(
-            MotionLibrarySummary(total = 3, approved = 1, drafts = 2),
+            MotionLibrarySummary(total = 3, approved = 1, drafts = 1, missing = 1),
             MotionLibraryPresenter.summarize(entries),
         )
     }
@@ -24,9 +24,13 @@ class MotionLibraryTest {
         val approved = MotionLibraryPresenter.label(
             MotionLibraryEntry("thanks", approved = true, signLanguage = "USL", reviewerName = "Amina"),
         )
+        val missing = MotionLibraryPresenter.label(
+            MotionLibraryEntry("please", approved = false, available = false),
+        )
 
         assertEquals("HELLO  |  DRAFT - needs fluent signer review", draft)
         assertEquals("THANKS  |  APPROVED (USL)", approved)
+        assertEquals("PLEASE  |  NOT RECORDED", missing)
     }
 
     @Test
@@ -34,6 +38,24 @@ class MotionLibraryTest {
         assertEquals(
             "Avatar library: no motions yet",
             MotionLibraryPresenter.summarize(emptyList()).displayText(),
+        )
+    }
+
+    @Test
+    fun `selection action protects approved motion and routes missing sign to capture`() {
+        assertEquals(
+            MotionLibraryAction.PREVIEW_APPROVED,
+            MotionLibraryPresenter.actionFor(MotionLibraryEntry("hello", approved = true)),
+        )
+        assertEquals(
+            MotionLibraryAction.REVIEW_DRAFT,
+            MotionLibraryPresenter.actionFor(MotionLibraryEntry("hello", approved = false)),
+        )
+        assertEquals(
+            MotionLibraryAction.START_CAPTURE,
+            MotionLibraryPresenter.actionFor(
+                MotionLibraryEntry("please", approved = false, available = false),
+            ),
         )
     }
 }

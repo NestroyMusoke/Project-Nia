@@ -51,3 +51,15 @@ Avatar implementation added after the original verification record:
 - A complete Gradle rerun from this Codex environment was blocked by its local
   loopback restriction. Run `gradlew.bat testDebugUnitTest` in Windows CMD
   before committing this milestone.
+
+## Guided 32-sign commissioning, 2026-09-29
+
+- The on-device library now includes every frozen vocabulary gloss, including
+  signs that have not yet been recorded.
+- Missing signs start an explicitly labelled avatar-motion capture; the frozen
+  classifier is not retrained, tuned, or used to relabel that commissioning
+  recording.
+- Drafts may be previewed or deliberately replaced. Approved clips are not
+  exposed to the replacement action.
+- The library presentation tests pass independently under JUnit 4.13.2. A full
+  Gradle test remains required from Windows CMD before commit.

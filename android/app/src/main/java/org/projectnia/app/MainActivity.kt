@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import org.projectnia.app.agent.NiaAgentClient
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
+import org.projectnia.app.avatar.MotionLibraryAction
 import org.projectnia.app.avatar.MotionLibraryPresenter
 import org.projectnia.app.avatar.SignedMessagePlanner
 import org.projectnia.app.databinding.ActivityMainBinding
@@ -62,6 +63,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     @Volatile private var lastOutput: ModelOutput? = null
     @Volatile private var lastCapturedFrames: List<LandmarkFrame> = emptyList()
     @Volatile private var lastRecognizedGloss: String? = null
+    @Volatile private var commissioningGloss: String? = null
     private val sessionId = UUID.randomUUID().toString()
 
     private val requestCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -87,7 +89,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         initializeSpeechRecognizer()
 
         binding.captureButton.setOnClickListener {
-            if (recording) stopAndRecognize() else startRecording()
+            if (recording) stopAndRecognize() else startRecording(commissioningGloss)
         }
         binding.teachButton.setOnClickListener { showCorrectionDialog() }
         binding.cameraModeButton.setOnClickListener { showCameraStage() }
@@ -121,7 +123,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                 synchronized(recordedFrames) {
                                     if (recordedFrames.size < 240) recordedFrames += frame
                                     if (recordedFrames.size % 10 == 0) {
-                                        runOnUiThread { binding.statusText.text = "Recording... ${recordedFrames.size} frames" }
+                                        val target = commissioningGloss?.uppercase(Locale.ROOT)?.let { "$it | " }.orEmpty()
+                                        runOnUiThread {
+                                            binding.statusText.text = "${target}Recording... ${recordedFrames.size} frames"
+                                        }
                                     }
                                 }
                             }
@@ -138,17 +143,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun startRecording() {
+    private fun startRecording(targetGloss: String? = null) {
+        commissioningGloss = targetGloss
         showCameraStage()
         synchronized(recordedFrames) { recordedFrames.clear() }
         lastOutput = null
         lastCapturedFrames = emptyList()
         lastRecognizedGloss = null
         recording = true
-        binding.captureButton.text = "Stop and recognize"
+        binding.captureButton.text = if (targetGloss == null) {
+            "Stop and recognize"
+        } else {
+            "Stop recording ${targetGloss.uppercase(Locale.ROOT)}"
+        }
         binding.teachButton.visibility = View.GONE
-        binding.predictionText.text = "..."
-        binding.confidenceText.text = "Keep your upper body and hands visible"
+        binding.validateMotionButton.visibility = View.GONE
+        binding.predictionText.text = targetGloss?.uppercase(Locale.ROOT) ?: "..."
+        binding.statusText.text = if (targetGloss == null) {
+            "Perform one isolated sign"
+        } else {
+            "Commissioning $targetGloss: perform that sign naturally"
+        }
+        binding.confidenceText.text = "Keep your upper body, hands, and face visible"
     }
 
     private fun stopAndRecognize() {
@@ -166,6 +182,38 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 quality.shouldersVisibleRatio * 100f,
             )
             showReady(quality.message)
+            return
+        }
+
+        val targetGloss = commissioningGloss
+        if (targetGloss != null) {
+            cameraExecutor.execute {
+                try {
+                    val clip = AvatarMotionRetargeter.fromLandmarks(targetGloss, frames)
+                    avatarMotionStore.saveDraft(clip)
+                    runOnUiThread {
+                        commissioningGloss = null
+                        lastRecognizedGloss = targetGloss
+                        binding.predictionText.text = targetGloss.uppercase(Locale.ROOT)
+                        binding.statusText.text =
+                            "Draft captured. Preview the full motion; a fluent signer must approve it."
+                        binding.confidenceText.text = String.format(
+                            Locale.ROOT,
+                            "Capture accepted | hand visible %.0f%% | shoulders visible %.0f%%",
+                            quality.handVisibleRatio * 100f,
+                            quality.shouldersVisibleRatio * 100f,
+                        )
+                        binding.avatarView.play(listOf(clip))
+                        showAvatarStage("${targetGloss.uppercase(Locale.ROOT)} | DRAFT - not available for replies")
+                        binding.validateMotionButton.visibility = View.VISIBLE
+                        binding.captureButton.isEnabled = true
+                        binding.captureButton.text = "Record another sign"
+                        refreshMotionLibraryStatus()
+                    }
+                } catch (error: Exception) {
+                    runOnUiThread { showReady("Motion capture error: ${error.message}") }
+                }
+            }
             return
         }
 
@@ -421,12 +469,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun refreshMotionLibraryStatus() {
-        val summary = MotionLibraryPresenter.summarize(avatarMotionStore.inventory())
+        val summary = MotionLibraryPresenter.summarize(avatarMotionStore.inventory(NiaVocabulary.labels))
         binding.motionLibraryText.text = summary.displayText()
     }
 
     private fun showMotionLibrary() {
-        val entries = avatarMotionStore.inventory()
+        val entries = avatarMotionStore.inventory(NiaVocabulary.labels)
         refreshMotionLibraryStatus()
         if (entries.isEmpty()) {
             binding.statusText.text = "No avatar motions yet. Record an isolated sign to create a review draft."
@@ -437,11 +485,45 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .setTitle("Avatar motion library")
             .setItems(labels) { _, index ->
                 val selected = entries[index]
-                lastRecognizedGloss = selected.gloss
-                binding.hearingMessageInput.setText(selected.gloss)
-                previewLastAvatarMotion()
+                when (MotionLibraryPresenter.actionFor(selected)) {
+                    MotionLibraryAction.PREVIEW_APPROVED -> {
+                        lastRecognizedGloss = selected.gloss
+                        binding.hearingMessageInput.setText(selected.gloss)
+                        previewLastAvatarMotion()
+                    }
+                    MotionLibraryAction.REVIEW_DRAFT -> showDraftActions(selected.gloss)
+                    MotionLibraryAction.START_CAPTURE -> confirmCommissioningCapture(selected.gloss)
+                }
             }
             .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showDraftActions(gloss: String) {
+        AlertDialog.Builder(this)
+            .setTitle("${gloss.uppercase(Locale.ROOT)} draft")
+            .setItems(arrayOf("Preview for signer review", "Record a replacement")) { _, action ->
+                if (action == 0) {
+                    lastRecognizedGloss = gloss
+                    binding.hearingMessageInput.setText(gloss)
+                    previewLastAvatarMotion()
+                } else {
+                    confirmCommissioningCapture(gloss)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmCommissioningCapture(gloss: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Record ${gloss.uppercase(Locale.ROOT)}")
+            .setMessage(
+                "This creates an avatar-motion draft for '$gloss'. The person recording must know the intended sign. " +
+                    "Nia will not use the draft in replies until a fluent signer reviews the rendered avatar."
+            )
+            .setPositiveButton("Start recording") { _, _ -> startRecording(gloss) }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
