@@ -12,6 +12,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Persistent, local 384-D prototype personalization using the frozen 3-shot / `0.65` / temperature `12` protocol.
 - Guided local personalization checklist for exactly three 384-D examples per sign, with per-sign progress and reset.
 - Optional online client for a Gemini + Google ADK service.
+- Visible, tap-to-refresh online-agent status with versioned backend compatibility and Cloud Run authentication detection.
 - Native OpenGL 3D signing avatar with full upper-body and 21-joint-per-hand articulation; no video clips.
 - Local MediaPipe-to-avatar motion retargeting, draft/validated states, and signer approval gating.
 - Offline 32-sign commissioning checklist with Not Recorded/Draft/Approved status, labelled capture, replacement, and review preview.
@@ -56,6 +57,13 @@ To connect the online agent, add this to your user Gradle properties (do not com
 ```properties
 NIA_AGENT_BASE_URL=https://YOUR-CLOUD-RUN-URL
 ```
+
+After rebuilding, the app checks `/healthz` for the exact Project Nia service
+name and API version. It reports connected, not configured, authentication
+required, incompatible, or unreachable without disabling offline recognition.
+An authentication-required result is expected for a private Cloud Run service
+until Firebase Authentication, Identity Platform, or an authenticated gateway
+is placed in front of it. Do not embed a service-account credential in the APK.
 
 ## Agent setup
 

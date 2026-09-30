@@ -88,3 +88,12 @@ Avatar implementation added after the original verification record:
   restored.
 - Pure progress tests cover partial, complete, and per-sign display states. The
   Android Gradle suite and physical capture flow remain device-side checks.
+
+## Online-agent compatibility status, 2026-09-30
+
+- `/healthz` now identifies the Project Nia agent, API version, local or Vertex
+  AI mode, and configured Gemini model without exposing credentials.
+- Android distinguishes not configured, connected, authentication required,
+  incompatible, and unreachable states while retaining offline operation.
+- Three Kotlin status-presentation tests and the compiled Android agent client
+  pass. The backend/tool suite now reports `10 passed`.

@@ -20,9 +20,17 @@ flowchart TD
     Offline -->|online| ADK["Gemini + Google ADK on Cloud Run"]
     Hearing["Hearing-person message"] --> ADK
     Validated --> ADK
+    AndroidHealth["Versioned /healthz check"] --> ADK
     ADK -->|validated glosses only| Avatar["Native 3D signing avatar"]
     ADK --> Firestore["Firestore goal/conversation memory"]
     ADK --> PubSub["Pub/Sub background jobs"]
 ```
 
 Raw camera frames, landmarks, avatar motion, and personal embeddings remain on device. Only accepted labels, confidence metadata, a hearing-person message when supplied, and the available validated gloss names are sent to the online agent. Pub/Sub is reserved for non-urgent work; immediate replies stay synchronous.
+
+The Android client treats the cloud layer as optional. Its health handshake
+requires `service=project-nia-agent` and `api_version=1`; an arbitrary HTTP 200
+response is not considered compatible. HTTP 401/403 is reported separately so
+a private Cloud Run deployment is never mistaken for a generic network outage.
+Offline recognition, local personalization, and already-approved avatar motion
+remain available when the agent is absent.

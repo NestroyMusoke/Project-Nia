@@ -12,6 +12,44 @@ data class AgentReply(
 )
 
 class NiaAgentClient(private val baseUrl: String) {
+    fun checkHealth(): AgentHealth {
+        if (baseUrl.isBlank()) return AgentHealth(AgentConnectionState.NOT_CONFIGURED)
+        val connection = runCatching {
+            URL(baseUrl.trimEnd('/') + "/healthz").openConnection() as HttpURLConnection
+        }.getOrElse { return AgentHealth(AgentConnectionState.UNREACHABLE) }
+        return try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 8_000
+            when (connection.responseCode) {
+                401, 403 -> AgentHealth(AgentConnectionState.AUTHENTICATION_REQUIRED)
+                !in 200..299 -> AgentHealth(AgentConnectionState.UNREACHABLE)
+                else -> {
+                    val response = runCatching {
+                        JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                    }.getOrNull() ?: return AgentHealth(AgentConnectionState.INCOMPATIBLE)
+                    if (
+                        response.optString("status") != "ok" ||
+                        response.optString("service") != EXPECTED_SERVICE ||
+                        response.optInt("api_version", -1) != SUPPORTED_API_VERSION
+                    ) {
+                        AgentHealth(AgentConnectionState.INCOMPATIBLE)
+                    } else {
+                        AgentHealth(
+                            state = AgentConnectionState.ONLINE,
+                            mode = response.optString("mode").takeIf { it.isNotBlank() },
+                            model = response.optString("model").takeIf { it.isNotBlank() },
+                        )
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            AgentHealth(AgentConnectionState.UNREACHABLE)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     fun interpret(
         label: String,
         confidence: Float,
@@ -64,4 +102,9 @@ class NiaAgentClient(private val baseUrl: String) {
         .put("session_id", sessionId)
         .put("avatar_vocabulary", JSONArray(avatarVocabulary.toList()))
         .put("request_id", UUID.randomUUID().toString())
+
+    private companion object {
+        const val EXPECTED_SERVICE = "project-nia-agent"
+        const val SUPPORTED_API_VERSION = 1
+    }
 }

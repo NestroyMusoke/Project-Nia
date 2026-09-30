@@ -20,6 +20,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import org.projectnia.app.agent.NiaAgentClient
+import org.projectnia.app.agent.AgentStatusPresenter
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
 import org.projectnia.app.avatar.MotionLibraryAction
@@ -138,6 +139,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         binding.teachButton.setOnClickListener { showCorrectionDialog() }
         binding.personalizeButton.setOnClickListener { showPersonalizationChecklist() }
+        binding.agentStatusText.setOnClickListener { refreshAgentStatus() }
         binding.cameraModeButton.setOnClickListener { showCameraStage() }
         binding.avatarModeButton.setOnClickListener { previewLastAvatarMotion() }
         binding.validateMotionButton.setOnClickListener { confirmSignerValidation() }
@@ -147,6 +149,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.talkButton.setOnClickListener { requestVoiceInput() }
         refreshMotionLibraryStatus()
         refreshPersonalizationStatus()
+        refreshAgentStatus()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera()
@@ -375,6 +378,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             PersonalizationMemory.SHOTS_PER_SIGN,
         )
         binding.personalizationProgressText.text = progress.displayText()
+    }
+
+    private fun refreshAgentStatus() {
+        binding.agentStatusText.text = "Online agent: checking..."
+        networkExecutor.execute {
+            val health = agentClient.checkHealth()
+            runOnUiThread {
+                binding.agentStatusText.text = AgentStatusPresenter.label(health)
+            }
+        }
     }
 
     private fun showPersonalizationChecklist() {

@@ -9,6 +9,17 @@ from fastapi.testclient import TestClient
 from nia_agent.api import app
 
 
+def test_health_contract_identifies_compatible_agent_service():
+    response = TestClient(app).get("/healthz")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "project-nia-agent"
+    assert payload["api_version"] == 1
+    assert payload["mode"] == "local"
+    assert payload["model"]
+
+
 def test_parse_structured_response():
     parsed = NiaAgentService._parse_response(
         '{"message":"Please wait.","sign_glosses":["please","wait"],"goal_state":{"status":"active","known":{},"missing":[],"next_action":"wait"},"clarification_needed":false}'

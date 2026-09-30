@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
 
 
+class HealthResponse(BaseModel):
+    status: str
+    service: str
+    api_version: int
+    mode: str
+    model: str
+
+
 class SignToken(BaseModel):
     label: str
     confidence: float = Field(ge=0.0, le=1.0)

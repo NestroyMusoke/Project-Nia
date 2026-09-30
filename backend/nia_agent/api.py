@@ -3,18 +3,25 @@ import json
 
 from fastapi import FastAPI, HTTPException, Request
 
-from .models import InterpretRequest, InterpretResponse, MessageToSignRequest
+from .config import settings
+from .models import HealthResponse, InterpretRequest, InterpretResponse, MessageToSignRequest
 from .service import NiaAgentService
 from .storage import store
 
 
-app = FastAPI(title="Project Nia Agent", version="0.1.0")
+app = FastAPI(title="Project Nia Agent", version="0.2.0")
 service = NiaAgentService(store)
 
 
-@app.get("/healthz")
-def healthz() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get("/healthz", response_model=HealthResponse)
+def healthz() -> HealthResponse:
+    return HealthResponse(
+        status="ok",
+        service="project-nia-agent",
+        api_version=1,
+        mode="local" if settings.local_mode else "vertex-ai",
+        model=settings.model,
+    )
 
 
 @app.post("/v1/interpret", response_model=InterpretResponse)
