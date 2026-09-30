@@ -34,3 +34,10 @@ response is not considered compatible. HTTP 401/403 is reported separately so
 a private Cloud Run deployment is never mistaken for a generic network outage.
 Offline recognition, local personalization, and already-approved avatar motion
 remain available when the agent is absent.
+
+Online calls are correlated end to end with a unique `request_id`. The Android
+client accepts only the matching response and independently rechecks every
+returned gloss against the signer-approved vocabulary included in that request.
+One unknown gloss rejects the complete sequence; the client never removes the
+unknown item and plays the remaining fragment. This duplicates the backend
+allow-list intentionally so either side fails closed if the other is faulty.

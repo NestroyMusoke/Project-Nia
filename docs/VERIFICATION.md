@@ -97,3 +97,13 @@ Avatar implementation added after the original verification record:
   incompatible, and unreachable states while retaining offline operation.
 - Three Kotlin status-presentation tests and the compiled Android agent client
   pass. The backend/tool suite now reports `10 passed`.
+
+## Correlated fail-closed agent calls, 2026-09-30
+
+- Android now requires the backend to echo the exact per-call request ID.
+- The phone independently rejects the entire avatar sequence when even one
+  returned gloss is not in its signer-approved vocabulary.
+- Authentication, timeout, network, service, and invalid-response failures are
+  represented separately instead of collapsing to a silent null response.
+- Six Kotlin agent-policy/status tests pass, including unknown-gloss and stale-
+  request rejection. Backend/tool tests remain `10 passed`.

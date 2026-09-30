@@ -1,6 +1,7 @@
 package org.projectnia.app.agent
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -33,5 +34,46 @@ class AgentStatusTest {
             "Online agent: Cloud Run authentication required",
             AgentStatusPresenter.label(AgentHealth(AgentConnectionState.AUTHENTICATION_REQUIRED)),
         )
+    }
+
+    @Test
+    fun `matching request with fully supported glosses is accepted`() {
+        val result = AgentReplyPolicy.validate(
+            expectedRequestId = "request-1",
+            responseRequestId = "request-1",
+            message = "Please wait.",
+            signGlosses = listOf("please", "wait"),
+            avatarVocabulary = setOf("please", "wait"),
+        )
+
+        assertEquals(listOf("please", "wait"), result.reply?.signGlosses)
+        assertNull(result.failure)
+    }
+
+    @Test
+    fun `unknown gloss rejects entire response instead of playing fragment`() {
+        val result = AgentReplyPolicy.validate(
+            expectedRequestId = "request-1",
+            responseRequestId = "request-1",
+            message = "Please wait.",
+            signGlosses = listOf("please", "invented", "wait"),
+            avatarVocabulary = setOf("please", "wait"),
+        )
+
+        assertNull(result.reply)
+        assertEquals(AgentCallFailure.INVALID_RESPONSE, result.failure)
+    }
+
+    @Test
+    fun `mismatched request id is rejected`() {
+        val result = AgentReplyPolicy.validate(
+            expectedRequestId = "new-request",
+            responseRequestId = "old-request",
+            message = "Hello.",
+            signGlosses = emptyList(),
+            avatarVocabulary = emptySet(),
+        )
+
+        assertEquals(AgentCallFailure.INVALID_RESPONSE, result.failure)
     }
 }

@@ -20,6 +20,7 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import org.projectnia.app.agent.NiaAgentClient
+import org.projectnia.app.agent.AgentCallPresenter
 import org.projectnia.app.agent.AgentStatusPresenter
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
@@ -455,13 +456,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun sendToAgent(label: String, confidence: Float, margin: Float) {
-        if (BuildConfig.NIA_AGENT_BASE_URL.isBlank()) return
         networkExecutor.execute {
             val playableGlosses = avatarMotionStore.availableGlosses(validatedOnly = true)
-            val reply = runCatching {
-                agentClient.interpret(label, confidence, margin, sessionId, playableGlosses)
-            }.getOrNull()
-            if (reply != null) runOnUiThread {
+            val result = agentClient.interpret(label, confidence, margin, sessionId, playableGlosses)
+            runOnUiThread {
+                val reply = result.reply
+                if (reply == null) {
+                    binding.statusText.text = AgentCallPresenter.message(requireNotNull(result.failure))
+                    return@runOnUiThread
+                }
                 binding.statusText.text = reply.text
                 val clips = reply.signGlosses.mapNotNull(avatarMotionStore::load)
                     .filter { it.signerValidated }
@@ -513,13 +516,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.signMessageButton.isEnabled = false
         binding.statusText.text = "Preparing signer-safe 3D motion..."
         networkExecutor.execute {
-            val reply = runCatching {
-                agentClient.signMessage(message, sessionId, vocabulary)
-            }.getOrNull()
+            val result = agentClient.signMessage(message, sessionId, vocabulary)
             runOnUiThread {
                 binding.signMessageButton.isEnabled = true
+                val reply = result.reply
                 if (reply == null) {
-                    binding.statusText.text = "Could not reach the Nia agent"
+                    binding.statusText.text = AgentCallPresenter.message(requireNotNull(result.failure))
                     return@runOnUiThread
                 }
                 val clips = reply.signGlosses.mapNotNull(avatarMotionStore::load)

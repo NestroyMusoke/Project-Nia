@@ -13,6 +13,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Guided local personalization checklist for exactly three 384-D examples per sign, with per-sign progress and reset.
 - Optional online client for a Gemini + Google ADK service.
 - Visible, tap-to-refresh online-agent status with versioned backend compatibility and Cloud Run authentication detection.
+- Correlated agent calls with explicit timeout/auth/service errors and phone-side fail-closed avatar-gloss validation.
 - Native OpenGL 3D signing avatar with full upper-body and 21-joint-per-hand articulation; no video clips.
 - Local MediaPipe-to-avatar motion retargeting, draft/validated states, and signer approval gating.
 - Offline 32-sign commissioning checklist with Not Recorded/Draft/Approved status, labelled capture, replacement, and review preview.
@@ -64,6 +65,13 @@ required, incompatible, or unreachable without disabling offline recognition.
 An authentication-required result is expected for a private Cloud Run service
 until Firebase Authentication, Identity Platform, or an authenticated gateway
 is placed in front of it. Do not embed a service-account credential in the APK.
+
+Every online request carries a unique request ID, and the phone rejects a
+response unless the ID is echoed back. If any returned avatar gloss is outside
+the exact approved vocabulary sent with that request, the phone rejects the
+whole response instead of animating a misleading partial sentence. Network,
+timeout, authentication, server, and invalid-response failures are shown
+separately while the accepted offline recognition result is retained.
 
 ## Agent setup
 
