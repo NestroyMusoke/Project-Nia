@@ -165,6 +165,14 @@
             android:text="Review avatar motion library" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/backupMotionsButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Backup or restore approved motions" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/validateMotionButton"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"

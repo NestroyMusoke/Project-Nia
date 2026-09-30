@@ -15,6 +15,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Native OpenGL 3D signing avatar with full upper-body and 21-joint-per-hand articulation; no video clips.
 - Local MediaPipe-to-avatar motion retargeting, draft/validated states, and signer approval gating.
 - Offline 32-sign commissioning checklist with Not Recorded/Draft/Approved status, labelled capture, replacement, and review preview.
+- Storage-picker backup and restore for hash-verified approved motions and their signer-review records.
 - Hearing-person message input that asks the online agent for playable, validated sign glosses.
 - Cloud Run service with Firestore goal memory and Pub/Sub background-job tooling.
 - A clean `OfflineLanguageLayer` boundary for Gemma; Gemma is not required for core recognition.
@@ -47,6 +48,8 @@ Build from Windows PowerShell:
 Install the APK from `android/app/build/outputs/apk/debug/app-debug.apk`, grant camera permission, tap **Start recording**, perform one isolated sign, then tap **Stop and recognize**. Use **Correct and teach Nia** to store the current 384-D embedding locally.
 
 Tap **Review avatar motion library** to see all 32 frozen vocabulary signs and whether each is not recorded, a draft, or approved. Selecting a missing sign starts a labelled capture session; selecting a draft allows preview or deliberate replacement. A fluent signer must inspect a draft before using **Signer-validate avatar motion**. Only validated clips are available to agent replies. A hearing person can type into **Message for the 3D signer** and tap **Sign it**; Gemini may return only glosses the phone has marked as validated. See `docs/AVATAR.md` for the commissioning and safety contract.
+
+Use **Backup or restore approved motions** to preserve commissioned work with Android's file picker. Exports contain only approved motions and their exact hash-bound reviews. Restore rejects malformed or mismatched archives and never overwrites a local motion. Because review records contain signer identity and notes, keep backups secure and share them only with permission.
 
 To connect the online agent, add this to your user Gradle properties (do not commit it):
 

@@ -74,6 +74,49 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (granted) startVoiceInput() else binding.statusText.text = "Microphone permission is required for spoken replies"
     }
 
+    private val createMotionBackup = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        binding.statusText.text = "Saving approved avatar motions..."
+        networkExecutor.execute {
+            val result = runCatching {
+                contentResolver.openOutputStream(uri)?.use(avatarMotionStore::exportApprovedBundle)
+                    ?: error("Could not open the selected file")
+            }
+            runOnUiThread {
+                binding.statusText.text = result.fold(
+                    onSuccess = { count -> "Backed up $count approved avatar motion(s)" },
+                    onFailure = { error -> "Backup failed: ${error.message ?: "unknown error"}" },
+                )
+            }
+        }
+    }
+
+    private val openMotionBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@registerForActivityResult
+        binding.statusText.text = "Checking avatar-motion backup..."
+        networkExecutor.execute {
+            val result = runCatching {
+                contentResolver.openInputStream(uri)?.use(avatarMotionStore::importApprovedBundle)
+                    ?: error("Could not open the selected file")
+            }
+            runOnUiThread {
+                result.fold(
+                    onSuccess = { imported ->
+                        refreshMotionLibraryStatus()
+                        binding.statusText.text =
+                            "Restored ${imported.imported} approved motion(s); " +
+                            "kept ${imported.skippedExisting} existing local motion(s) unchanged"
+                    },
+                    onFailure = { error ->
+                        binding.statusText.text = "Restore rejected: ${error.message ?: "invalid backup"}"
+                    },
+                )
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -96,6 +139,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.avatarModeButton.setOnClickListener { previewLastAvatarMotion() }
         binding.validateMotionButton.setOnClickListener { confirmSignerValidation() }
         binding.reviewMotionsButton.setOnClickListener { showMotionLibrary() }
+        binding.backupMotionsButton.setOnClickListener { showMotionBackupMenu() }
         binding.signMessageButton.setOnClickListener { requestSignedMessage() }
         binding.talkButton.setOnClickListener { requestVoiceInput() }
         refreshMotionLibraryStatus()
@@ -523,6 +567,48 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     "Nia will not use the draft in replies until a fluent signer reviews the rendered avatar."
             )
             .setPositiveButton("Start recording") { _, _ -> startRecording(gloss) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showMotionBackupMenu() {
+        AlertDialog.Builder(this)
+            .setTitle("Approved motion backup")
+            .setItems(arrayOf("Export approved motions", "Restore approved motions")) { _, action ->
+                if (action == 0) confirmMotionExport() else confirmMotionImport()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmMotionExport() {
+        val approved = avatarMotionStore.availableGlosses(validatedOnly = true).size
+        if (approved == 0) {
+            binding.statusText.text = "There are no signer-approved motions to back up yet"
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Export $approved approved motion(s)?")
+            .setMessage(
+                "The backup contains motion data plus signer names, sign languages, review times, and review notes. " +
+                    "Store it securely and share it only with the reviewer's permission."
+            )
+            .setPositiveButton("Choose save location") { _, _ ->
+                createMotionBackup.launch("project_nia_approved_avatar_motions.zip")
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmMotionImport() {
+        AlertDialog.Builder(this)
+            .setTitle("Restore approved motions?")
+            .setMessage(
+                "Nia will verify every motion against its signer-review hash. Existing local motions will not be overwritten."
+            )
+            .setPositiveButton("Choose backup") { _, _ ->
+                openMotionBackup.launch(arrayOf("application/zip", "application/octet-stream"))
+            }
             .setNegativeButton("Cancel", null)
             .show()
     }

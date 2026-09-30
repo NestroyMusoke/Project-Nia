@@ -63,3 +63,15 @@ Avatar implementation added after the original verification record:
   exposed to the replacement action.
 - The library presentation tests pass independently under JUnit 4.13.2. A full
   Gradle test remains required from Windows CMD before commit.
+
+## Approved-motion backup, 2026-09-30
+
+- Added Android document-picker export and restore without broad storage
+  permission.
+- Export is restricted to hash-verified signer-approved motions. Restore is
+  size-limited, refuses to overwrite local motions, and verifies every review
+  digest before writing.
+- Restore rejects unsafe filenames, traversal, duplicates, and unmatched
+  motion/review pairs. Nine pure Kotlin library and archive-policy tests pass.
+- Physical export/restore and the complete Android Gradle suite remain the next
+  device-side acceptance checkpoint.

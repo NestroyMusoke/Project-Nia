@@ -37,6 +37,22 @@ or changing that motion invalidates the approval automatically. A legacy motion
 with only a boolean approval flag is treated as unapproved until it receives an
 auditable review.
 
+## Approved-motion backup
+
+**Backup or restore approved motions** uses Android's document picker, so Nia
+does not request broad storage access. Export includes only motions whose current
+bytes match an auditable signer review. Drafts are excluded.
+
+Restore accepts only flat, size-limited `.niamotion` and `.niareview` pairs. It
+rejects path traversal, duplicate or unknown entries, missing pairs, unapproved
+motions, label mismatches, trailing binary data, and any review whose SHA-256
+does not match its motion. Existing local motions are never overwritten. A
+failed restore removes files newly created by that restore operation.
+
+The archive contains reviewer names, sign languages, timestamps, and optional
+notes. Treat it as sensitive project data and share it only with the reviewers'
+permission.
+
 ## Safety contract
 
 - Gemini chooses only from the exact signer-validated gloss list supplied by the phone.
