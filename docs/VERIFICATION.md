@@ -75,3 +75,16 @@ Avatar implementation added after the original verification record:
   motion/review pairs. Nine pure Kotlin library and archive-policy tests pass.
 - Physical export/restore and the complete Android Gradle suite remain the next
   device-side acceptance checkpoint.
+
+## Guided personalization, 2026-09-30
+
+- Added a visible 32-sign, three-samples-per-sign calibration checklist and
+  `0/96` through `96/96` progress state.
+- Guided capture stores only the frozen model's local 384-D embedding under the
+  explicitly selected class. It does not modify classifier weights or avatar
+  motion data.
+- Partial calibration remains inactive. Resetting one sign removes its local
+  examples and disables personalization until the complete support set is
+  restored.
+- Pure progress tests cover partial, complete, and per-sign display states. The
+  Android Gradle suite and physical capture flow remain device-side checks.

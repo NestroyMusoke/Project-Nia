@@ -54,10 +54,23 @@ class PersonalizationMemory {
         }
     }
 
+    @Synchronized
     fun count(classId: Int): Int = examples[classId].size
+
+    @Synchronized
     fun hasAny(): Boolean = examples.any { it.isNotEmpty() }
+
+    @Synchronized
     fun isFrozenProtocolComplete(): Boolean = examples.all { it.size == SHOTS_PER_SIGN }
+
+    @Synchronized
     fun completedClassCount(): Int = examples.count { it.size == SHOTS_PER_SIGN }
+
+    @Synchronized
+    fun clearClass(classId: Int) {
+        require(classId in 0 until NiaModel.CLASS_COUNT)
+        examples[classId].clear()
+    }
 
     @Synchronized
     fun snapshot(): List<List<FloatArray>> = examples.map { classExamples ->

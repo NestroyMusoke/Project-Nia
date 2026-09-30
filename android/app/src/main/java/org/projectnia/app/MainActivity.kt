@@ -33,6 +33,7 @@ import org.projectnia.app.ml.ModelOutput
 import org.projectnia.app.ml.NiaModel
 import org.projectnia.app.ml.NiaVocabulary
 import org.projectnia.app.ml.PersonalizationMemory
+import org.projectnia.app.ml.PersonalizationProgressPresenter
 import org.projectnia.app.ml.PersonalizationStore
 import org.projectnia.app.ml.V3Preprocessor
 import org.projectnia.app.vision.HolisticFrameExtractor
@@ -64,6 +65,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     @Volatile private var lastCapturedFrames: List<LandmarkFrame> = emptyList()
     @Volatile private var lastRecognizedGloss: String? = null
     @Volatile private var commissioningGloss: String? = null
+    @Volatile private var calibrationClassId: Int? = null
     private val sessionId = UUID.randomUUID().toString()
 
     private val requestCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -132,9 +134,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         initializeSpeechRecognizer()
 
         binding.captureButton.setOnClickListener {
-            if (recording) stopAndRecognize() else startRecording(commissioningGloss)
+            if (recording) stopAndRecognize() else startRecording(commissioningGloss, calibrationClassId)
         }
         binding.teachButton.setOnClickListener { showCorrectionDialog() }
+        binding.personalizeButton.setOnClickListener { showPersonalizationChecklist() }
         binding.cameraModeButton.setOnClickListener { showCameraStage() }
         binding.avatarModeButton.setOnClickListener { previewLastAvatarMotion() }
         binding.validateMotionButton.setOnClickListener { confirmSignerValidation() }
@@ -143,6 +146,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.signMessageButton.setOnClickListener { requestSignedMessage() }
         binding.talkButton.setOnClickListener { requestVoiceInput() }
         refreshMotionLibraryStatus()
+        refreshPersonalizationStatus()
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera()
@@ -167,9 +171,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                                 synchronized(recordedFrames) {
                                     if (recordedFrames.size < 240) recordedFrames += frame
                                     if (recordedFrames.size % 10 == 0) {
-                                        val target = commissioningGloss?.uppercase(Locale.ROOT)?.let { "$it | " }.orEmpty()
+                                        val target = commissioningGloss
+                                            ?: calibrationClassId?.let(NiaVocabulary.labels::get)
+                                        val prefix = target?.uppercase(Locale.ROOT)?.let { "$it | " }.orEmpty()
                                         runOnUiThread {
-                                            binding.statusText.text = "${target}Recording... ${recordedFrames.size} frames"
+                                            binding.statusText.text = "${prefix}Recording... ${recordedFrames.size} frames"
                                         }
                                     }
                                 }
@@ -187,26 +193,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun startRecording(targetGloss: String? = null) {
+    private fun startRecording(targetGloss: String? = null, calibrationTarget: Int? = null) {
+        require(targetGloss == null || calibrationTarget == null)
         commissioningGloss = targetGloss
+        calibrationClassId = calibrationTarget
+        val calibrationGloss = calibrationTarget?.let(NiaVocabulary.labels::get)
         showCameraStage()
         synchronized(recordedFrames) { recordedFrames.clear() }
         lastOutput = null
         lastCapturedFrames = emptyList()
         lastRecognizedGloss = null
         recording = true
-        binding.captureButton.text = if (targetGloss == null) {
-            "Stop and recognize"
-        } else {
-            "Stop recording ${targetGloss.uppercase(Locale.ROOT)}"
+        binding.captureButton.text = when {
+            targetGloss != null -> "Stop recording ${targetGloss.uppercase(Locale.ROOT)}"
+            calibrationGloss != null -> "Stop calibration ${calibrationGloss.uppercase(Locale.ROOT)}"
+            else -> "Stop and recognize"
         }
         binding.teachButton.visibility = View.GONE
         binding.validateMotionButton.visibility = View.GONE
-        binding.predictionText.text = targetGloss?.uppercase(Locale.ROOT) ?: "..."
-        binding.statusText.text = if (targetGloss == null) {
-            "Perform one isolated sign"
-        } else {
-            "Commissioning $targetGloss: perform that sign naturally"
+        binding.predictionText.text = (targetGloss ?: calibrationGloss)?.uppercase(Locale.ROOT) ?: "..."
+        binding.statusText.text = when {
+            targetGloss != null -> "Commissioning $targetGloss: perform that sign naturally"
+            calibrationGloss != null -> "Calibration sample: perform $calibrationGloss naturally"
+            else -> "Perform one isolated sign"
         }
         binding.confidenceText.text = "Keep your upper body, hands, and face visible"
     }
@@ -256,6 +265,37 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     }
                 } catch (error: Exception) {
                     runOnUiThread { showReady("Motion capture error: ${error.message}") }
+                }
+            }
+            return
+        }
+
+        val calibrationTarget = calibrationClassId
+        if (calibrationTarget != null) {
+            cameraExecutor.execute {
+                try {
+                    val features = preprocessor.process(frames)
+                    val output = model.infer(features)
+                    val saved = personalization.addCorrection(calibrationTarget, output.embedding)
+                    if (saved) personalizationStore.save(personalization)
+                    val count = personalization.count(calibrationTarget)
+                    val gloss = NiaVocabulary.labels[calibrationTarget]
+                    runOnUiThread {
+                        calibrationClassId = null
+                        binding.predictionText.text = gloss.uppercase(Locale.ROOT)
+                        binding.statusText.text = if (saved) {
+                            "Saved calibration sample $count/${PersonalizationMemory.SHOTS_PER_SIGN} for $gloss"
+                        } else {
+                            "$gloss already has all ${PersonalizationMemory.SHOTS_PER_SIGN} calibration samples"
+                        }
+                        binding.confidenceText.text =
+                            "Embedding stored locally; model weights and evaluation data were not changed"
+                        binding.captureButton.isEnabled = true
+                        binding.captureButton.text = "Record another sign"
+                        refreshPersonalizationStatus()
+                    }
+                } catch (error: Exception) {
+                    runOnUiThread { showReady("Calibration error: ${error.message}") }
                 }
             }
             return
@@ -316,12 +356,86 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 lastRecognizedGloss?.takeIf { it != correctedGloss }?.let(avatarMotionStore::discardDraft)
                 saveAvatarDraft(correctedGloss, lastCapturedFrames)
                 refreshMotionLibraryStatus()
+                refreshPersonalizationStatus()
                 binding.statusText.text = if (saved) {
                     "Saved calibration: $correctedGloss ($count/${PersonalizationMemory.SHOTS_PER_SIGN}). " +
                         "Personalization activates after all 32 signs are calibrated."
                 } else {
                     "$correctedGloss already has ${PersonalizationMemory.SHOTS_PER_SIGN} examples"
                 }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun refreshPersonalizationStatus() {
+        val counts = NiaVocabulary.labels.indices.map(personalization::count)
+        val progress = PersonalizationProgressPresenter.summarize(
+            counts,
+            PersonalizationMemory.SHOTS_PER_SIGN,
+        )
+        binding.personalizationProgressText.text = progress.displayText()
+    }
+
+    private fun showPersonalizationChecklist() {
+        val counts = NiaVocabulary.labels.indices.map(personalization::count)
+        val labels = NiaVocabulary.labels.mapIndexed { classId, gloss ->
+            PersonalizationProgressPresenter.label(
+                gloss,
+                counts[classId],
+                PersonalizationMemory.SHOTS_PER_SIGN,
+            )
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Personalization calibration")
+            .setItems(labels) { _, classId -> showCalibrationActions(classId) }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showCalibrationActions(classId: Int) {
+        val gloss = NiaVocabulary.labels[classId]
+        val count = personalization.count(classId)
+        val actions = buildList {
+            if (count < PersonalizationMemory.SHOTS_PER_SIGN) add("Record next sample")
+            if (count > 0) add("Reset samples for this sign")
+        }
+        if (actions.isEmpty()) return
+        AlertDialog.Builder(this)
+            .setTitle("${gloss.uppercase(Locale.ROOT)} | $count/${PersonalizationMemory.SHOTS_PER_SIGN}")
+            .setItems(actions.toTypedArray()) { _, selected ->
+                when (actions[selected]) {
+                    "Record next sample" -> confirmCalibrationCapture(classId)
+                    else -> confirmCalibrationReset(classId)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmCalibrationCapture(classId: Int) {
+        val gloss = NiaVocabulary.labels[classId]
+        val next = personalization.count(classId) + 1
+        AlertDialog.Builder(this)
+            .setTitle("Record $gloss sample $next/${PersonalizationMemory.SHOTS_PER_SIGN}")
+            .setMessage(
+                "Perform one natural isolated '$gloss' sign. This stores only the model's 384-D embedding on this phone."
+            )
+            .setPositiveButton("Start recording") { _, _ -> startRecording(calibrationTarget = classId) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmCalibrationReset(classId: Int) {
+        val gloss = NiaVocabulary.labels[classId]
+        AlertDialog.Builder(this)
+            .setTitle("Reset $gloss calibration?")
+            .setMessage("All saved personalization samples for '$gloss' will be removed from this phone.")
+            .setPositiveButton("Reset") { _, _ ->
+                personalization.clearClass(classId)
+                personalizationStore.save(personalization)
+                refreshPersonalizationStatus()
+                binding.statusText.text = "Reset personalization samples for $gloss"
             }
             .setNegativeButton("Cancel", null)
             .show()

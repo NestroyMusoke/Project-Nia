@@ -35,4 +35,19 @@ class PersonalizationMemoryTest {
         assertEquals(1f, personalized.sum(), 1e-5f)
         assertTrue(personalized[4] > personalized[0])
     }
+
+    @Test
+    fun clearingOneClassDisablesPersonalizationUntilItIsRecalibrated() {
+        val memory = PersonalizationMemory()
+        repeat(32) { classId ->
+            val embedding = FloatArray(384).also { it[classId] = 1f }
+            repeat(3) { memory.addCorrection(classId, embedding) }
+        }
+
+        memory.clearClass(4)
+
+        assertEquals(0, memory.count(4))
+        assertFalse(memory.isFrozenProtocolComplete())
+        assertEquals(31, memory.completedClassCount())
+    }
 }

@@ -39,6 +39,17 @@ does not blend that memory into predictions until the complete support set is
 present. This prevents a partially represented prototype softmax from changing
 the frozen classifier in a way the published evaluation never measured.
 
+The Android **Personalize sign recognition** checklist exposes all 32 frozen
+classes and the number of locally stored examples for each. Selecting an
+incomplete class records one quality-gated isolated sign, runs the unchanged
+V3 pipeline and frozen model, and stores only its normalized 384-D embedding
+under the user-selected class. It does not save camera frames or tune model
+weights, thresholds, preprocessing, or final-test claims.
+
+A user can explicitly reset one class and re-record it. Resetting even one
+class immediately disables personalization until that class again has exactly
+three examples.
+
 ## Capture quality
 
 Before preprocessing, the app requires at least 12 captured frames, a usable

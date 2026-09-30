@@ -105,6 +105,15 @@
             android:textColor="@color/nia_primary_dark"
             android:textSize="13sp" />
 
+        <TextView
+            android:id="@+id/personalizationProgressText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Personalization: inactive | 0/96 samples"
+            android:textColor="@color/nia_primary_dark"
+            android:textSize="13sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -155,6 +164,14 @@
             android:layout_marginTop="8dp"
             android:text="Correct and teach Nia"
             android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/personalizeButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Personalize sign recognition" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/reviewMotionsButton"
