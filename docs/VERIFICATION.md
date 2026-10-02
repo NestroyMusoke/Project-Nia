@@ -118,3 +118,15 @@ Avatar implementation added after the original verification record:
   are ignored, and backgrounding cancels the partial capture cleanly.
 - Layout XML parses successfully. The final acceptance checkpoint remains the
   Android Gradle suite followed by visual testing on the Galaxy A17.
+
+## Anonymous installation identity, 2026-10-02
+
+- Replaced the shared Android cloud user ID with a random per-install UUID. No
+  device serial, model, phone number, advertising ID, or account identifier is
+  read or transmitted.
+- Disabled Android cloud backup and device-transfer extraction for private app
+  files, databases, preferences, and external app storage.
+- API and Pub/Sub identifiers are constrained before any Firestore path is
+  constructed; tests reject traversal-style identifiers.
+- Identity-policy, Android-resource, backend, and complete Gradle checks remain
+  part of the verification commands below.

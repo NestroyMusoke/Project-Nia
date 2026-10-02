@@ -7,7 +7,14 @@ import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
-class NiaAgentClient(private val baseUrl: String) {
+class NiaAgentClient(
+    private val baseUrl: String,
+    private val installId: String,
+) {
+    init {
+        require(InstallIdentityPolicy.isValid(installId))
+    }
+
     fun checkHealth(): AgentHealth {
         if (baseUrl.isBlank()) return AgentHealth(AgentConnectionState.NOT_CONFIGURED)
         val connection = runCatching {
@@ -119,7 +126,7 @@ class NiaAgentClient(private val baseUrl: String) {
     }
 
     private fun baseRequest(sessionId: String, avatarVocabulary: Set<String>, requestId: String) = JSONObject()
-        .put("user_id", "android")
+        .put("user_id", installId)
         .put("session_id", sessionId)
         .put("avatar_vocabulary", JSONArray(avatarVocabulary.toList()))
         .put("request_id", requestId)

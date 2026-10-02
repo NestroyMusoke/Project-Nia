@@ -4,7 +4,7 @@ import json
 from fastapi import FastAPI, HTTPException, Request
 
 from .config import settings
-from .models import HealthResponse, InterpretRequest, InterpretResponse, MessageToSignRequest
+from .models import HealthResponse, InterpretRequest, InterpretResponse, MessageToSignRequest, is_safe_identifier
 from .service import NiaAgentService
 from .storage import store
 
@@ -42,7 +42,11 @@ async def pubsub_events(request: Request) -> None:
         payload = json.loads(base64.b64decode(encoded).decode("utf-8"))
         if not all(key in payload for key in ("user_id", "session_id", "action")):
             raise ValueError("missing required job fields")
+        if not is_safe_identifier(payload["user_id"]) or not is_safe_identifier(payload["session_id"]):
+            raise ValueError("unsafe job identifier")
     except (KeyError, ValueError, TypeError, json.JSONDecodeError) as error:
         raise HTTPException(status_code=400, detail="Invalid Pub/Sub envelope") from error
     message_id = str(envelope["message"].get("messageId") or envelope["message"].get("id") or payload["action"])
+    if not is_safe_identifier(message_id):
+        raise HTTPException(status_code=400, detail="Invalid Pub/Sub message identifier")
     store.save_job(payload["user_id"], payload["session_id"], message_id, payload)

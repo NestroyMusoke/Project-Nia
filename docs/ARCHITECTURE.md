@@ -28,6 +28,16 @@ flowchart TD
 
 Raw camera frames, landmarks, avatar motion, and personal embeddings remain on device. Only accepted labels, confidence metadata, a hearing-person message when supplied, and the available validated gloss names are sent to the online agent. Pub/Sub is reserved for non-urgent work; immediate replies stay synchronous.
 
+Each installation creates a random anonymous `install-<UUID>` value in private
+preferences. It separates Firestore conversation paths without using hardware,
+account, advertising, or contact identifiers. Android automatic backup and
+device transfer are disabled for Nia's private files and preferences. Reinstalling
+after clearing app data therefore creates a new cloud identity.
+
+The backend accepts only bounded ASCII letters, digits, underscores, and hyphens
+for user, session, request, and Pub/Sub message identifiers before constructing
+Firestore document paths.
+
 The Android client treats the cloud layer as optional. Its health handshake
 requires `service=project-nia-agent` and `api_version=1`; an arbitrary HTTP 200
 response is not considered compatible. HTTP 401/403 is reported separately so

@@ -70,3 +70,28 @@ def test_pubsub_push_is_acknowledged():
         }
     }
     assert TestClient(app).post("/pubsub/events", json=envelope).status_code == 204
+
+
+def test_pubsub_rejects_firestore_path_injection():
+    payload = {"user_id": "../other-user", "session_id": "s", "action": "follow_up"}
+    envelope = {
+        "message": {
+            "messageId": "m2",
+            "data": base64.b64encode(json.dumps(payload).encode()).decode(),
+        }
+    }
+    assert TestClient(app).post("/pubsub/events", json=envelope).status_code == 400
+
+
+def test_api_rejects_unsafe_user_identifier_before_agent_execution():
+    response = TestClient(app).post(
+        "/v1/sign-message",
+        json={
+            "user_id": "../other-user",
+            "session_id": "session-1",
+            "message": "hello",
+            "avatar_vocabulary": [],
+            "request_id": "request-1",
+        },
+    )
+    assert response.status_code == 422

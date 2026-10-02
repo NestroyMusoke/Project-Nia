@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import org.projectnia.app.agent.NiaAgentClient
 import org.projectnia.app.agent.AgentCallPresenter
 import org.projectnia.app.agent.AgentStatusPresenter
+import org.projectnia.app.agent.InstallIdentityStore
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
 import org.projectnia.app.avatar.MotionLibraryAction
@@ -131,7 +132,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         model = NiaModel(this)
         personalizationStore = PersonalizationStore(this)
         personalization = personalizationStore.load()
-        agentClient = NiaAgentClient(BuildConfig.NIA_AGENT_BASE_URL)
+        agentClient = NiaAgentClient(
+            BuildConfig.NIA_AGENT_BASE_URL,
+            InstallIdentityStore(this).getOrCreate(),
+        )
         avatarMotionStore = AvatarMotionStore(this)
         textToSpeech = TextToSpeech(this, this)
         initializeSpeechRecognizer()

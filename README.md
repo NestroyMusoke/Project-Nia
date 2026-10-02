@@ -21,6 +21,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Storage-picker backup and restore for hash-verified approved motions and their signer-review records.
 - Hearing-person message input that asks the online agent for playable, validated sign glosses.
 - Cloud Run service with Firestore goal memory and Pub/Sub background-job tooling.
+- Random per-install cloud identity with safe Firestore identifiers; no hardware or advertising identifier.
 - A clean `OfflineLanguageLayer` boundary for Gemma; Gemma is not required for core recognition.
 
 ## Frozen claims — do not change
@@ -59,6 +60,13 @@ retry.
 Tap **Review avatar motion library** to see all 32 frozen vocabulary signs and whether each is not recorded, a draft, or approved. Selecting a missing sign starts a labelled capture session; selecting a draft allows preview or deliberate replacement. A fluent signer must inspect a draft before using **Signer-validate avatar motion**. Only validated clips are available to agent replies. A hearing person can type into **Message for the 3D signer** and tap **Sign it**; Gemini may return only glosses the phone has marked as validated. See `docs/AVATAR.md` for the commissioning and safety contract.
 
 Use **Backup or restore approved motions** to preserve commissioned work with Android's file picker. Exports contain only approved motions and their exact hash-bound reviews. Restore rejects malformed or mismatched archives and never overwrites a local motion. Because review records contain signer identity and notes, keep backups secure and share them only with permission.
+
+Android automatic cloud backup and device-to-device extraction are disabled for
+Project Nia. Personal embeddings, local motion files, signer-review records, and
+the anonymous installation ID therefore remain in app-private storage unless
+the user explicitly exports an approved-motion archive. The cloud agent uses a
+random `install-<UUID>` identity, never the device serial number, Samsung model,
+phone number, advertising ID, or Google account.
 
 To connect the online agent, add this to your user Gradle properties (do not commit it):
 
