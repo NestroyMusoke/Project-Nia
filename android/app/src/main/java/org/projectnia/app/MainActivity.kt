@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var textToSpeechReady = false
+    private var speechRecognitionAvailable = false
 
     @Volatile private var recording = false
     @Volatile private var lastOutput: ModelOutput? = null
@@ -170,22 +171,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 .also { useCase ->
                     useCase.setAnalyzer(cameraExecutor) { image ->
                         try {
+                            if (!recording) return@setAnalyzer
                             val frame = frameExtractor.extract(image.toBitmap(), image.imageInfo.rotationDegrees)
                             if (recording) {
                                 synchronized(recordedFrames) {
                                     if (recordedFrames.size < 240) recordedFrames += frame
-                                    if (recordedFrames.size % 10 == 0) {
+                                    val frameCount = recordedFrames.size
+                                    if (frameCount % 10 == 0) {
                                         val target = commissioningGloss
                                             ?: calibrationClassId?.let(NiaVocabulary.labels::get)
                                         val prefix = target?.uppercase(Locale.ROOT)?.let { "$it | " }.orEmpty()
                                         runOnUiThread {
-                                            binding.statusText.text = "${prefix}Recording... ${recordedFrames.size} frames"
+                                            if (recording) {
+                                                binding.statusText.text = "${prefix}Recording... $frameCount frames"
+                                            }
                                         }
                                     }
                                 }
                             }
                         } catch (error: Exception) {
-                            runOnUiThread { binding.statusText.text = "Landmark error: ${error.message}" }
+                            if (recording) {
+                                runOnUiThread { binding.statusText.text = "Landmark error: ${error.message}" }
+                            }
                         } finally {
                             image.close()
                         }
@@ -208,6 +215,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         lastCapturedFrames = emptyList()
         lastRecognizedGloss = null
         recording = true
+        setRecordingControls(active = true)
         binding.captureButton.text = when {
             targetGloss != null -> "Stop recording ${targetGloss.uppercase(Locale.ROOT)}"
             calibrationGloss != null -> "Stop calibration ${calibrationGloss.uppercase(Locale.ROOT)}"
@@ -265,6 +273,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         binding.validateMotionButton.visibility = View.VISIBLE
                         binding.captureButton.isEnabled = true
                         binding.captureButton.text = "Record another sign"
+                        setRecordingControls(active = false)
                         refreshMotionLibraryStatus()
                     }
                 } catch (error: Exception) {
@@ -296,6 +305,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                             "Embedding stored locally; model weights and evaluation data were not changed"
                         binding.captureButton.isEnabled = true
                         binding.captureButton.text = "Record another sign"
+                        setRecordingControls(active = false)
                         refreshPersonalizationStatus()
                     }
                 } catch (error: Exception) {
@@ -341,6 +351,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     refreshMotionLibraryStatus()
                     binding.captureButton.isEnabled = true
                     binding.captureButton.text = "Record another sign"
+                    setRecordingControls(active = false)
                 }
             } catch (error: Exception) {
                 runOnUiThread { showReady("Inference error: ${error.message}") }
@@ -566,6 +577,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             binding.talkButton.isEnabled = false
             return
         }
+        speechRecognitionAvailable = true
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this).also { recognizer ->
             recognizer.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
@@ -843,7 +855,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onPause() {
-        if (::binding.isInitialized) binding.avatarView.onPause()
+        if (::binding.isInitialized) {
+            if (recording) {
+                recording = false
+                synchronized(recordedFrames) { recordedFrames.clear() }
+                showReady("Recording paused. Start again when Nia is visible.")
+            }
+            binding.avatarView.onPause()
+        }
         super.onPause()
     }
 
@@ -851,6 +870,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.statusText.text = message
         binding.captureButton.isEnabled = true
         binding.captureButton.text = "Start recording"
+        setRecordingControls(active = false)
+    }
+
+    private fun setRecordingControls(active: Boolean) {
+        val enabled = !active
+        binding.cameraModeButton.isEnabled = enabled
+        binding.avatarModeButton.isEnabled = enabled
+        binding.talkButton.isEnabled = enabled && speechRecognitionAvailable
+        binding.signMessageButton.isEnabled = enabled
+        binding.personalizeButton.isEnabled = enabled
+        binding.reviewMotionsButton.isEnabled = enabled
+        binding.backupMotionsButton.isEnabled = enabled
+        binding.agentStatusText.isEnabled = enabled
     }
 
     override fun onDestroy() {

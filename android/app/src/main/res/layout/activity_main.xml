@@ -12,7 +12,9 @@
         app:layout_constraintBottom_toTopOf="@id/resultPanel"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="spread"
+        app:layout_constraintVertical_weight="1.05">
 
         <androidx.camera.view.PreviewView
             android:id="@+id/preview"
@@ -60,23 +62,32 @@
         </LinearLayout>
     </FrameLayout>
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/resultPanel"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:overScrollMode="ifContentScrolls"
+        android:scrollbars="vertical"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/stage"
+        app:layout_constraintVertical_weight="1">
 
-        <TextView
-            android:id="@+id/statusText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Ready - record one isolated sign"
-            android:textColor="@color/nia_primary_dark"
-            android:textSize="16sp" />
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ready - record one isolated sign"
+                android:textColor="@color/nia_primary_dark"
+                android:textSize="16sp" />
 
         <TextView
             android:id="@+id/predictionText"
@@ -201,13 +212,14 @@
             android:layout_marginTop="8dp"
             android:text="Backup or restore approved motions" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/validateMotionButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Signer-validate avatar motion"
-            android:visibility="gone" />
-    </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/validateMotionButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Signer-validate avatar motion"
+                android:visibility="gone" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -107,3 +107,14 @@ Avatar implementation added after the original verification record:
   represented separately instead of collapsing to a silent null response.
 - Six Kotlin agent-policy/status tests pass, including unknown-gloss and stale-
   request rejection. Backend/tool tests remain `10 passed`.
+
+## Android capture responsiveness, 2026-10-02
+
+- Camera/avatar and controls now form a weighted split layout; the lower panel
+  scrolls without pushing the visual signing stage off screen.
+- ImageAnalysis closes idle frames without running MediaPipe. Landmark extraction
+  occurs only while a recording is active.
+- Conflicting controls are disabled during capture, stale frame-count updates
+  are ignored, and backgrounding cancels the partial capture cleanly.
+- Layout XML parses successfully. The final acceptance checkpoint remains the
+  Android Gradle suite followed by visual testing on the Galaxy A17.

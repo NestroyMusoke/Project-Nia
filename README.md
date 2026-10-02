@@ -5,6 +5,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 ## What is implemented
 
 - CameraX front-camera capture of one isolated sign.
+- Responsive split camera/control layout with a scrollable tool panel and recording-safe lifecycle handling.
 - MediaPipe Holistic face, pose, and both-hand landmarks.
 - Exact frozen V3 preprocessing to `64 × 272`.
 - Local LiteRT inference with output discovery by tensor shape.
@@ -48,6 +49,12 @@ Build from Windows PowerShell:
 ```
 
 Install the APK from `android/app/build/outputs/apk/debug/app-debug.apk`, grant camera permission, tap **Start recording**, perform one isolated sign, then tap **Stop and recognize**. Use **Correct and teach Nia** after an ordinary capture, or **Personalize sign recognition** for the guided `3 × 32 = 96` sample checklist. Embeddings remain local, and partial calibration never changes inference.
+
+The camera/avatar always retains its own portion of the screen while the lower
+controls scroll independently. MediaPipe landmark inference runs only during an
+active recording. Navigating away during capture cancels the partial recording
+and keeps the selected commissioning or calibration target ready for a clean
+retry.
 
 Tap **Review avatar motion library** to see all 32 frozen vocabulary signs and whether each is not recorded, a draft, or approved. Selecting a missing sign starts a labelled capture session; selecting a draft allows preview or deliberate replacement. A fluent signer must inspect a draft before using **Signer-validate avatar motion**. Only validated clips are available to agent replies. A hearing person can type into **Message for the 3D signer** and tap **Sign it**; Gemini may return only glosses the phone has marked as validated. See `docs/AVATAR.md` for the commissioning and safety contract.
 
