@@ -23,6 +23,8 @@ import org.projectnia.app.agent.NiaAgentClient
 import org.projectnia.app.agent.AgentCallPresenter
 import org.projectnia.app.agent.AgentStatusPresenter
 import org.projectnia.app.agent.InstallIdentityStore
+import org.projectnia.app.agent.RecognizedSignToken
+import org.projectnia.app.agent.SignedPhraseBuffer
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
 import org.projectnia.app.avatar.MotionLibraryAction
@@ -38,6 +40,7 @@ import org.projectnia.app.ml.NiaVocabulary
 import org.projectnia.app.ml.PersonalizationMemory
 import org.projectnia.app.ml.PersonalizationProgressPresenter
 import org.projectnia.app.ml.PersonalizationStore
+import org.projectnia.app.ml.Recognition
 import org.projectnia.app.ml.V3Preprocessor
 import org.projectnia.app.vision.HolisticFrameExtractor
 import java.util.Locale
@@ -52,6 +55,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val preprocessor = V3Preprocessor()
     private val confidenceGate = ConfidenceGate()
     private val captureQualityGate = CaptureQualityGate()
+    private val signedPhrase = SignedPhraseBuffer()
 
     private lateinit var frameExtractor: HolisticFrameExtractor
     private lateinit var model: NiaModel
@@ -68,6 +72,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     @Volatile private var lastOutput: ModelOutput? = null
     @Volatile private var lastCapturedFrames: List<LandmarkFrame> = emptyList()
     @Volatile private var lastRecognizedGloss: String? = null
+    @Volatile private var lastRecognition: Recognition? = null
+    @Volatile private var lastCaptureBuffered = false
+    @Volatile private var translatingPhrase = false
     @Volatile private var commissioningGloss: String? = null
     @Volatile private var calibrationClassId: Int? = null
     private val sessionId = UUID.randomUUID().toString()
@@ -153,6 +160,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.backupMotionsButton.setOnClickListener { showMotionBackupMenu() }
         binding.signMessageButton.setOnClickListener { requestSignedMessage() }
         binding.talkButton.setOnClickListener { requestVoiceInput() }
+        binding.translateSignsButton.setOnClickListener { translateSignedPhrase() }
+        binding.clearSignsButton.setOnClickListener { clearSignedPhrase() }
+        refreshSignedPhrase()
         refreshMotionLibraryStatus()
         refreshPersonalizationStatus()
         refreshAgentStatus()
@@ -218,6 +228,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         lastOutput = null
         lastCapturedFrames = emptyList()
         lastRecognizedGloss = null
+        lastRecognition = null
+        lastCaptureBuffered = false
         recording = true
         setRecordingControls(active = true)
         binding.captureButton.text = when {
@@ -330,16 +342,26 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 } else output.generalProbabilities
                 val recognition = confidenceGate.decide(probabilities)
                 runOnUiThread {
+                    lastRecognition = recognition
                     if (recognition.needsClarification) {
+                        lastCaptureBuffered = false
                         binding.predictionText.text = "Not sure"
                         binding.statusText.text = "Please repeat the isolated sign"
                     } else {
                         val label = requireNotNull(recognition.label)
+                        val added = signedPhrase.append(
+                            RecognizedSignToken(label, recognition.confidence, recognition.margin)
+                        )
+                        lastCaptureBuffered = added
                         binding.predictionText.text = label.uppercase(Locale.ROOT)
-                        binding.statusText.text = if (personalizationReady) "Recognized with frozen-protocol personalization" else "Recognized offline"
+                        binding.statusText.text = when {
+                            !added -> "Phrase is full. Translate or clear it before recording another sign."
+                            personalizationReady -> "Added to signed phrase with frozen-protocol personalization"
+                            else -> "Added to signed phrase offline"
+                        }
                         speakEnglish(label)
                         saveAvatarDraft(label, frames)
-                        sendToAgent(label, recognition.confidence, recognition.margin)
+                        refreshSignedPhrase()
                     }
                     binding.confidenceText.text = String.format(
                         Locale.ROOT,
@@ -372,8 +394,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val saved = personalization.addCorrection(classId, output.embedding)
                 if (saved) personalizationStore.save(personalization)
                 val count = personalization.count(classId)
+                val recognition = lastRecognition
                 lastRecognizedGloss?.takeIf { it != correctedGloss }?.let(avatarMotionStore::discardDraft)
                 saveAvatarDraft(correctedGloss, lastCapturedFrames)
+                if (recognition != null) {
+                    val correctedToken = RecognizedSignToken(
+                        correctedGloss,
+                        recognition.confidence,
+                        recognition.margin,
+                        userCorrected = true,
+                    )
+                    val updated = if (lastCaptureBuffered) {
+                        signedPhrase.replaceLast(correctedToken)
+                    } else {
+                        signedPhrase.append(correctedToken)
+                    }
+                    lastCaptureBuffered = updated
+                    if (updated) {
+                        binding.predictionText.text = correctedGloss.uppercase(Locale.ROOT)
+                        refreshSignedPhrase()
+                    }
+                }
                 refreshMotionLibraryStatus()
                 refreshPersonalizationStatus()
                 binding.statusText.text = if (saved) {
@@ -470,17 +511,39 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .show()
     }
 
-    private fun sendToAgent(label: String, confidence: Float, margin: Float) {
+    private fun translateSignedPhrase() {
+        val tokens = signedPhrase.snapshot()
+        if (tokens.isEmpty()) {
+            binding.statusText.text = "Record at least one isolated sign first"
+            return
+        }
+        val literalText = tokens.joinToString(" ") { it.label.replace('_', ' ') }
+        if (BuildConfig.NIA_AGENT_BASE_URL.isBlank()) {
+            binding.statusText.text =
+                "Offline literal signs: $literalText. Configure the online agent for sentence interpretation."
+            speakEnglishText(literalText, "nia-signed-phrase-literal")
+            return
+        }
+        translatingPhrase = true
+        binding.captureButton.isEnabled = false
+        binding.teachButton.isEnabled = false
+        refreshSignedPhrase()
+        binding.statusText.text = "Interpreting ${tokens.size} signed token(s)..."
         networkExecutor.execute {
             val playableGlosses = avatarMotionStore.availableGlosses(validatedOnly = true)
-            val result = agentClient.interpret(label, confidence, margin, sessionId, playableGlosses)
+            val result = agentClient.interpret(tokens, sessionId, playableGlosses)
             runOnUiThread {
+                translatingPhrase = false
+                binding.captureButton.isEnabled = true
+                binding.teachButton.isEnabled = true
+                refreshSignedPhrase()
                 val reply = result.reply
                 if (reply == null) {
                     binding.statusText.text = AgentCallPresenter.message(requireNotNull(result.failure))
                     return@runOnUiThread
                 }
                 binding.statusText.text = reply.text
+                speakEnglishText(reply.text, "nia-signed-phrase-interpretation")
                 val clips = reply.signGlosses.mapNotNull(avatarMotionStore::load)
                     .filter { it.signerValidated }
                 if (clips.isNotEmpty()) {
@@ -489,6 +552,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
             }
         }
+    }
+
+    private fun clearSignedPhrase() {
+        signedPhrase.clear()
+        lastCaptureBuffered = false
+        refreshSignedPhrase()
+        binding.statusText.text = "Signed phrase cleared"
+    }
+
+    private fun refreshSignedPhrase() {
+        binding.signedPhraseText.text = signedPhrase.displayText()
+        val canEdit = !recording && !translatingPhrase
+        binding.translateSignsButton.isEnabled = canEdit && !signedPhrase.isEmpty()
+        binding.clearSignsButton.isEnabled = canEdit && !signedPhrase.isEmpty()
     }
 
     private fun requestSignedMessage() {
@@ -563,9 +640,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun speakEnglish(gloss: String) {
-        if (!textToSpeechReady) return
         val spokenMeaning = gloss.replace('_', ' ').trim()
-        textToSpeech?.speak(spokenMeaning, TextToSpeech.QUEUE_FLUSH, null, "nia-sign-result")
+        speakEnglishText(spokenMeaning, "nia-sign-result")
+    }
+
+    private fun speakEnglishText(text: String, utteranceId: String) {
+        if (!textToSpeechReady || text.isBlank()) return
+        textToSpeech?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
     }
 
     private fun requestVoiceInput() {
@@ -887,6 +968,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.reviewMotionsButton.isEnabled = enabled
         binding.backupMotionsButton.isEnabled = enabled
         binding.agentStatusText.isEnabled = enabled
+        binding.translateSignsButton.isEnabled = enabled && !translatingPhrase && !signedPhrase.isEmpty()
+        binding.clearSignsButton.isEnabled = enabled && !translatingPhrase && !signedPhrase.isEmpty()
     }
 
     override fun onDestroy() {

@@ -54,20 +54,27 @@ class NiaAgentClient(
     }
 
     fun interpret(
-        label: String,
-        confidence: Float,
-        margin: Float,
+        tokens: List<RecognizedSignToken>,
         sessionId: String,
         avatarVocabulary: Set<String>,
     ): AgentCallResult {
         if (baseUrl.isBlank()) return AgentCallResult.failed(AgentCallFailure.NOT_CONFIGURED)
+        if (tokens.isEmpty() || tokens.size > SignedPhraseBuffer.MAX_TOKENS) {
+            return AgentCallResult.failed(AgentCallFailure.INVALID_RESPONSE)
+        }
         val requestId = UUID.randomUUID().toString()
-        val token = JSONObject()
-            .put("label", label)
-            .put("confidence", confidence)
-            .put("margin", margin)
+        val tokenArray = JSONArray()
+        tokens.forEach { token ->
+            tokenArray.put(
+                JSONObject()
+                    .put("label", token.label)
+                    .put("confidence", token.confidence)
+                    .put("margin", token.margin)
+                    .put("user_corrected", token.userCorrected)
+            )
+        }
         val body = baseRequest(sessionId, avatarVocabulary, requestId)
-            .put("tokens", JSONArray().put(token))
+            .put("tokens", tokenArray)
         return post("/v1/interpret", body.toString(), requestId, avatarVocabulary)
     }
 

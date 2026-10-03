@@ -130,3 +130,17 @@ Avatar implementation added after the original verification record:
   constructed; tests reject traversal-style identifiers.
 - Identity-policy, Android-resource, backend, and complete Gradle checks remain
   part of the verification commands below.
+
+## Multi-sign phrase buffer, 2026-10-03
+
+- Accepted isolated signs now accumulate locally in a visible, bounded 20-token
+  phrase instead of triggering one cloud call per capture.
+- An uncertain capture is not added. **Correct and teach Nia** either replaces
+  the latest accepted token or adds the explicit correction for an uncertain
+  capture, and marks it as human-corrected in the agent request.
+- Translation is an explicit user action. Offline mode speaks the literal gloss
+  sequence; the compatible online agent receives the complete sequence and its
+  interpretation is spoken aloud.
+- Three pure Kotlin buffer tests and the compiled Android agent client pass.
+  Backend tests report `9 passed`. The full Android Gradle suite remains the
+  Windows CMD acceptance check because this sandbox blocks Gradle loopback.

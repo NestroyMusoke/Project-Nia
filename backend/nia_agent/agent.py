@@ -20,6 +20,8 @@ express the reply, return an empty sign_glosses list. Never invent a gloss and
 never treat English word order as ASL grammar.
 
 If confidence is weak or the meaning is ambiguous, ask one short clarification.
+Treat a token with user_corrected=true as an explicit human correction rather
+than as a high-confidence model prediction.
 Track the user's goal using: status, known facts, missing facts, and next action.
 Use publish_background_job only for genuinely asynchronous follow-up; never put
 the immediate response behind Pub/Sub.

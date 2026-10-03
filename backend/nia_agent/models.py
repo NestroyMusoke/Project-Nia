@@ -22,6 +22,7 @@ class SignToken(BaseModel):
     label: str
     confidence: float = Field(ge=0.0, le=1.0)
     margin: float = Field(ge=-1.0, le=1.0)
+    user_corrected: bool = False
 
 
 class InterpretRequest(BaseModel):

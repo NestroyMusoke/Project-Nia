@@ -10,6 +10,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Exact frozen V3 preprocessing to `64 × 272`.
 - Local LiteRT inference with output discovery by tensor shape.
 - Confidence and top-two-margin rejection instead of forced guesses.
+- Reviewable on-device phrase buffer for up to 20 separately recorded signs, with latest-capture correction and explicit translation.
 - Persistent, local 384-D prototype personalization using the frozen 3-shot / `0.65` / temperature `12` protocol.
 - Guided local personalization checklist for exactly three 384-D examples per sign, with per-sign progress and reset.
 - Optional online client for a Gemini + Google ADK service.
@@ -49,7 +50,7 @@ Build from Windows PowerShell:
 .\gradlew.bat :android:app:testDebugUnitTest :android:app:assembleDebug
 ```
 
-Install the APK from `android/app/build/outputs/apk/debug/app-debug.apk`, grant camera permission, tap **Start recording**, perform one isolated sign, then tap **Stop and recognize**. Use **Correct and teach Nia** after an ordinary capture, or **Personalize sign recognition** for the guided `3 × 32 = 96` sample checklist. Embeddings remain local, and partial calibration never changes inference.
+Install the APK from `android/app/build/outputs/apk/debug/app-debug.apk`, grant camera permission, tap **Start recording**, perform one isolated sign, then tap **Stop and recognize**. Repeat to build the visible **Signed phrase**, then tap **Translate signed phrase**. With no online agent, Nia speaks the literal accepted glosses; with the compatible agent configured, it interprets the whole bounded sequence and speaks the response. Use **Correct and teach Nia** to replace the latest captured token as well as save its local personalization example, or **Personalize sign recognition** for the guided `3 × 32 = 96` sample checklist. Embeddings remain local, and partial calibration never changes inference.
 
 The camera/avatar always retains its own portion of the screen while the lower
 controls scroll independently. MediaPipe landmark inference runs only during an
@@ -87,6 +88,11 @@ the exact approved vocabulary sent with that request, the phone rejects the
 whole response instead of animating a misleading partial sentence. Network,
 timeout, authentication, server, and invalid-response failures are shown
 separately while the accepted offline recognition result is retained.
+Only the accepted labels and their confidence metadata leave the phone when the
+user explicitly taps **Translate signed phrase**. A manual correction is marked
+as user-corrected so the agent does not mistake the model's original confidence
+for confidence in the corrected label. The buffer is limited to 20 tokens and
+does not claim continuous-sign recognition.
 
 ## Agent setup
 

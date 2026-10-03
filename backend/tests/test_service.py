@@ -7,6 +7,7 @@ os.environ.setdefault("NIA_LOCAL_MODE", "true")
 from nia_agent.service import NiaAgentService
 from fastapi.testclient import TestClient
 from nia_agent.api import app
+from nia_agent.models import SignToken
 
 
 def test_health_contract_identifies_compatible_agent_service():
@@ -18,6 +19,14 @@ def test_health_contract_identifies_compatible_agent_service():
     assert payload["api_version"] == 1
     assert payload["mode"] == "local"
     assert payload["model"]
+
+
+def test_sign_token_preserves_explicit_user_correction():
+    corrected = SignToken(label="hello", confidence=0.4, margin=0.05, user_corrected=True)
+    automatic = SignToken(label="hello", confidence=0.8, margin=0.2)
+
+    assert corrected.user_corrected is True
+    assert automatic.user_corrected is False
 
 
 def test_parse_structured_response():

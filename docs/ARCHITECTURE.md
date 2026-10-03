@@ -12,12 +12,13 @@ flowchart TD
     Local --> Blend
     Blend --> Gate["Confidence + top-two margin gate"]
     Gate -->|accepted| Offline["Offline sign token"]
+    Offline --> Buffer["Reviewable phrase buffer — max 20 tokens"]
     Gate -->|uncertain| Clarify["Ask user to repeat/correct"]
     Holistic --> Retarget["64-frame avatar motion retargeting"]
     Retarget --> Draft["Local draft motion"]
     Draft -->|fluent signer approval| Validated["Validated avatar vocabulary"]
-    Offline -->|optional later| Gemma["Gemma offline language layer"]
-    Offline -->|online| ADK["Gemini + Google ADK on Cloud Run"]
+    Buffer -->|optional later| Gemma["Gemma offline language layer"]
+    Buffer -->|explicit Translate action| ADK["Gemini + Google ADK on Cloud Run"]
     Hearing["Hearing-person message"] --> ADK
     Validated --> ADK
     AndroidHealth["Versioned /healthz check"] --> ADK
@@ -26,7 +27,7 @@ flowchart TD
     ADK --> PubSub["Pub/Sub background jobs"]
 ```
 
-Raw camera frames, landmarks, avatar motion, and personal embeddings remain on device. Only accepted labels, confidence metadata, a hearing-person message when supplied, and the available validated gloss names are sent to the online agent. Pub/Sub is reserved for non-urgent work; immediate replies stay synchronous.
+Raw camera frames, landmarks, avatar motion, and personal embeddings remain on device. Separately captured accepted signs accumulate in a bounded local buffer and remain reviewable until the user clears them. Only when the user explicitly requests translation are the accepted labels, confidence metadata, user-correction markers, and available validated gloss names sent to the online agent. A hearing-person message is sent only when supplied. Pub/Sub is reserved for non-urgent work; immediate replies stay synchronous.
 
 Each installation creates a random anonymous `install-<UUID>` value in private
 preferences. It separates Firestore conversation paths without using hardware,
