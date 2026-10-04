@@ -17,6 +17,11 @@ Each accepted isolated-sign recording can be retargeted into a 64-frame local `.
 
 The **3D signer** button previews the latest motion. A fluent signer must watch the complete animation and explicitly approve it using **Signer-validate avatar motion**. Only approved clips are exposed to the online agent and permitted in generated replies.
 
+The rendered sequence can be replayed without another network request. Playback
+offers very slow, slow, and relaxed presentation rates, with slow as the default.
+Changing speed restarts the exact same motion sequence; it does not resample,
+rewrite, approve, or linguistically modify any `.niamotion` clip.
+
 The bottom panel continuously reports progress across the frozen 32-sign
 vocabulary. **Review avatar motion library** opens an offline checklist in
 which every item is visibly labelled `NOT RECORDED`, `DRAFT`, or `APPROVED`.
@@ -61,6 +66,7 @@ permission.
   partial sentence.
 - Draft clips never play as agent replies.
 - Approval is valid only while its review digest matches the exact motion file.
+- Replay and speed controls operate only in the renderer and cannot change the approved motion bytes or review digest.
 - Correcting a recognition discards the wrongly labelled draft before saving the corrected one.
 - An empty gloss list is required when the available vocabulary cannot faithfully communicate the response.
 - A gloss sequence is not automatically assumed to be grammatical ASL. Fluent-sign review remains required.

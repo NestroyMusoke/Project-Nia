@@ -144,3 +144,15 @@ Avatar implementation added after the original verification record:
 - Three pure Kotlin buffer tests and the compiled Android agent client pass.
   Backend tests report `9 passed`. The full Android Gradle suite remains the
   Windows CMD acceptance check because this sandbox blocks Gradle loopback.
+
+## Avatar playback controls, 2026-10-04
+
+- Added local replay for the most recently loaded draft or approved sequence;
+  replay never invokes Gemini or changes the stored motion.
+- Added bounded very-slow, slow, and relaxed renderer rates. Slow remains the
+  default, and changing rate restarts the exact motion for consistent review.
+- Playback rate is presentation state only. Approved `.niamotion` bytes and
+  their hash-bound signer reviews remain unchanged.
+- Two pure Kotlin speed-cycle tests pass, and Android resources compile with
+  AAPT2. The complete Gradle suite and visual timing on the Galaxy A17 remain
+  the physical-device acceptance checkpoint.

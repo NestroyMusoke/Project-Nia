@@ -25,8 +25,11 @@ import org.projectnia.app.agent.AgentStatusPresenter
 import org.projectnia.app.agent.InstallIdentityStore
 import org.projectnia.app.agent.RecognizedSignToken
 import org.projectnia.app.agent.SignedPhraseBuffer
+import org.projectnia.app.avatar.AvatarMotionClip
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
+import org.projectnia.app.avatar.AvatarPlaybackPresenter
+import org.projectnia.app.avatar.AvatarPlaybackSpeed
 import org.projectnia.app.avatar.MotionLibraryAction
 import org.projectnia.app.avatar.MotionLibraryPresenter
 import org.projectnia.app.avatar.SignedMessagePlanner
@@ -56,6 +59,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val confidenceGate = ConfidenceGate()
     private val captureQualityGate = CaptureQualityGate()
     private val signedPhrase = SignedPhraseBuffer()
+    private var avatarPlaybackSpeed = AvatarPlaybackSpeed.SLOW
 
     private lateinit var frameExtractor: HolisticFrameExtractor
     private lateinit var model: NiaModel
@@ -155,6 +159,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.agentStatusText.setOnClickListener { refreshAgentStatus() }
         binding.cameraModeButton.setOnClickListener { showCameraStage() }
         binding.avatarModeButton.setOnClickListener { previewLastAvatarMotion() }
+        binding.replayAvatarButton.setOnClickListener { replayAvatarMotion() }
+        binding.avatarSpeedButton.setOnClickListener { cycleAvatarPlaybackSpeed() }
         binding.validateMotionButton.setOnClickListener { confirmSignerValidation() }
         binding.reviewMotionsButton.setOnClickListener { showMotionLibrary() }
         binding.backupMotionsButton.setOnClickListener { showMotionBackupMenu() }
@@ -163,6 +169,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.translateSignsButton.setOnClickListener { translateSignedPhrase() }
         binding.clearSignsButton.setOnClickListener { clearSignedPhrase() }
         refreshSignedPhrase()
+        binding.avatarView.setPlaybackSpeed(avatarPlaybackSpeed)
+        refreshAvatarPlaybackControls()
         refreshMotionLibraryStatus()
         refreshPersonalizationStatus()
         refreshAgentStatus()
@@ -284,7 +292,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                             quality.handVisibleRatio * 100f,
                             quality.shouldersVisibleRatio * 100f,
                         )
-                        binding.avatarView.play(listOf(clip))
+                        playAvatarMotions(listOf(clip))
                         showAvatarStage("${targetGloss.uppercase(Locale.ROOT)} | DRAFT - not available for replies")
                         binding.validateMotionButton.visibility = View.VISIBLE
                         binding.captureButton.isEnabled = true
@@ -547,7 +555,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 val clips = reply.signGlosses.mapNotNull(avatarMotionStore::load)
                     .filter { it.signerValidated }
                 if (clips.isNotEmpty()) {
-                    binding.avatarView.play(clips)
+                    playAvatarMotions(clips)
                     showAvatarStage("3D signing: ${reply.signGlosses.joinToString(" ")}")
                 }
             }
@@ -581,7 +589,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 avatarMotionStore.load(gloss)?.takeIf { it.signerValidated }
             }
             if (clips.size == localPlan.glosses.size) {
-                binding.avatarView.play(clips)
+                playAvatarMotions(clips)
                 showAvatarStage("Sign preview: ${localPlan.glosses.joinToString(" ").uppercase(Locale.ROOT)}")
                 binding.statusText.text = if (localPlan.usesFingerspelling) {
                     "Signing locally with verified signs and fingerspelling"
@@ -621,7 +629,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 if (clips.isEmpty()) {
                     binding.statusText.text = "The validated avatar vocabulary cannot express that message yet"
                 } else {
-                    binding.avatarView.play(clips)
+                    playAvatarMotions(clips)
                     showAvatarStage("3D signing: ${reply.signGlosses.joinToString(" ")}")
                     binding.statusText.text = reply.text
                 }
@@ -849,11 +857,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (clip == null) {
             showAvatarStage("No reviewable motion found. Record a sign or type one exact gloss first.")
             binding.avatarView.clearMotion()
+            refreshAvatarPlaybackControls()
             return
         }
         lastRecognizedGloss = gloss
         binding.validateMotionButton.visibility = if (clip.signerValidated) View.GONE else View.VISIBLE
-        binding.avatarView.play(listOf(clip))
+        playAvatarMotions(listOf(clip))
         val review = avatarMotionStore.loadReview(gloss)
         val status = if (clip.signerValidated && review != null) {
             "${review.signLanguage} reviewed by ${review.reviewerName}"
@@ -934,6 +943,42 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.avatarCaptionText.visibility = View.VISIBLE
     }
 
+    private fun playAvatarMotions(clips: List<AvatarMotionClip>) {
+        if (clips.isEmpty()) return
+        binding.avatarView.play(clips)
+        refreshAvatarPlaybackControls()
+    }
+
+    private fun replayAvatarMotion() {
+        if (binding.avatarView.replay()) {
+            binding.statusText.text =
+                "Replaying 3D signing at ${avatarPlaybackSpeed.displayName.lowercase(Locale.ROOT)} speed"
+            showAvatarStage(binding.avatarCaptionText.text.toString())
+        } else {
+            binding.statusText.text = "No 3D motion is ready to replay"
+        }
+        refreshAvatarPlaybackControls()
+    }
+
+    private fun cycleAvatarPlaybackSpeed() {
+        avatarPlaybackSpeed = avatarPlaybackSpeed.next()
+        val restarted = binding.avatarView.hasMotion()
+        binding.avatarView.setPlaybackSpeed(avatarPlaybackSpeed)
+        binding.statusText.text = buildString {
+            append("3D signing speed set to ")
+            append(avatarPlaybackSpeed.displayName.lowercase(Locale.ROOT))
+            if (restarted) append("; motion restarted")
+        }
+        refreshAvatarPlaybackControls()
+    }
+
+    private fun refreshAvatarPlaybackControls() {
+        val hasMotion = binding.avatarView.hasMotion()
+        binding.replayAvatarButton.isEnabled = !recording && hasMotion
+        binding.avatarSpeedButton.isEnabled = !recording
+        binding.avatarSpeedButton.text = AvatarPlaybackPresenter.speedLabel(avatarPlaybackSpeed)
+    }
+
     override fun onResume() {
         super.onResume()
         if (::binding.isInitialized) binding.avatarView.onResume()
@@ -968,6 +1013,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.reviewMotionsButton.isEnabled = enabled
         binding.backupMotionsButton.isEnabled = enabled
         binding.agentStatusText.isEnabled = enabled
+        binding.replayAvatarButton.isEnabled = enabled && binding.avatarView.hasMotion()
+        binding.avatarSpeedButton.isEnabled = enabled
         binding.translateSignsButton.isEnabled = enabled && !translatingPhrase && !signedPhrase.isEmpty()
         binding.clearSignsButton.isEnabled = enabled && !translatingPhrase && !signedPhrase.isEmpty()
     }

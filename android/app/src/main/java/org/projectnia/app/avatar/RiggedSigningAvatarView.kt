@@ -38,6 +38,7 @@ class RiggedSigningAvatarView @JvmOverloads constructor(
     @Volatile private var running = false
     @Volatile private var playlist: List<AvatarMotionClip> = emptyList()
     @Volatile private var playbackStartedAt = 0L
+    @Volatile private var playbackSpeed = AvatarPlaybackSpeed.SLOW
     private val restTransforms = linkedMapOf<String, FloatArray>()
     private val ambientLight: IndirectLight
 
@@ -95,6 +96,19 @@ class RiggedSigningAvatarView @JvmOverloads constructor(
         playlist = clips.toList()
         playbackStartedAt = System.nanoTime()
     }
+
+    fun setPlaybackSpeed(speed: AvatarPlaybackSpeed) {
+        playbackSpeed = speed
+        if (playlist.isNotEmpty()) playbackStartedAt = System.nanoTime()
+    }
+
+    fun replay(): Boolean {
+        if (playlist.isEmpty()) return false
+        playbackStartedAt = System.nanoTime()
+        return true
+    }
+
+    fun hasMotion(): Boolean = playlist.isNotEmpty()
 
     fun clearMotion() {
         playlist = emptyList()
@@ -286,7 +300,7 @@ class RiggedSigningAvatarView @JvmOverloads constructor(
         // their captured timing, while this global presentation rate gives the
         // viewer time to resolve handshape, location, and movement.
         var elapsed = (System.nanoTime() - playbackStartedAt).coerceAtLeast(0L) /
-            1_000_000_000f * SIGNING_PLAYBACK_RATE
+            1_000_000_000f * playbackSpeed.timeScale
         if (elapsed < PREPARE_SECONDS) {
             return interpolate(
                 NEUTRAL_FRAME,
@@ -544,7 +558,6 @@ class RiggedSigningAvatarView @JvmOverloads constructor(
 
     private companion object {
         const val AVATAR_ASSET = "nia_avatar_nia.vrm"
-        const val SIGNING_PLAYBACK_RATE = 0.42f
         const val PREPARE_SECONDS = 0.22f
         const val POSTURE_HOLD_SECONDS = 0.32f
         const val TRANSITION_SECONDS = 0.24f

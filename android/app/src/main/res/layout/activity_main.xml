@@ -151,6 +151,31 @@
             android:textColor="@color/nia_primary_dark"
             android:textSize="13sp" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/replayAvatarButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:enabled="false"
+                android:text="Replay 3D motion" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/avatarSpeedButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:text="Speed: Slow" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/personalizationProgressText"
             android:layout_width="match_parent"
