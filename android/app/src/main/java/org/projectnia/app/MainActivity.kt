@@ -26,6 +26,7 @@ import org.projectnia.app.agent.InstallIdentityStore
 import org.projectnia.app.agent.RecognizedSignToken
 import org.projectnia.app.agent.SignedPhraseBuffer
 import org.projectnia.app.avatar.AvatarMotionClip
+import org.projectnia.app.avatar.AvatarMotionDiagnostics
 import org.projectnia.app.avatar.AvatarMotionRetargeter
 import org.projectnia.app.avatar.AvatarMotionStore
 import org.projectnia.app.avatar.AvatarPlaybackPresenter
@@ -279,6 +280,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             cameraExecutor.execute {
                 try {
                     val clip = AvatarMotionRetargeter.fromLandmarks(targetGloss, frames)
+                    val diagnostics = AvatarMotionDiagnostics.analyze(clip)
                     avatarMotionStore.saveDraft(clip)
                     runOnUiThread {
                         commissioningGloss = null
@@ -286,12 +288,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         binding.predictionText.text = targetGloss.uppercase(Locale.ROOT)
                         binding.statusText.text =
                             "Draft captured. Preview the full motion; a fluent signer must approve it."
-                        binding.confidenceText.text = String.format(
-                            Locale.ROOT,
-                            "Capture accepted | hand visible %.0f%% | shoulders visible %.0f%%",
-                            quality.handVisibleRatio * 100f,
-                            quality.shouldersVisibleRatio * 100f,
-                        )
+                        binding.confidenceText.text =
+                            "${diagnostics.displayText()}\n${diagnostics.reviewGuidance()}"
                         playAvatarMotions(listOf(clip))
                         showAvatarStage("${targetGloss.uppercase(Locale.ROOT)} | DRAFT - not available for replies")
                         binding.validateMotionButton.visibility = View.VISIBLE
@@ -764,16 +762,51 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .setItems(labels) { _, index ->
                 val selected = entries[index]
                 when (MotionLibraryPresenter.actionFor(selected)) {
-                    MotionLibraryAction.PREVIEW_APPROVED -> {
-                        lastRecognizedGloss = selected.gloss
-                        binding.hearingMessageInput.setText(selected.gloss)
-                        previewLastAvatarMotion()
+                    MotionLibraryAction.MANAGE_APPROVED -> {
+                        showApprovedMotionActions(selected.gloss)
                     }
                     MotionLibraryAction.REVIEW_DRAFT -> showDraftActions(selected.gloss)
                     MotionLibraryAction.START_CAPTURE -> confirmCommissioningCapture(selected.gloss)
                 }
             }
             .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun showApprovedMotionActions(gloss: String) {
+        AlertDialog.Builder(this)
+            .setTitle("${gloss.uppercase(Locale.ROOT)} approved motion")
+            .setItems(arrayOf("Preview approved motion", "Revoke approval and record replacement")) { _, action ->
+                if (action == 0) {
+                    lastRecognizedGloss = gloss
+                    binding.hearingMessageInput.setText(gloss)
+                    previewLastAvatarMotion()
+                } else {
+                    confirmApprovedMotionReplacement(gloss)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun confirmApprovedMotionReplacement(gloss: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Replace approved ${gloss.uppercase(Locale.ROOT)} motion?")
+            .setMessage(
+                "This immediately revokes the current signer approval and removes it from all reply paths. " +
+                    "The old motion remains an unapproved draft until the replacement is captured. " +
+                    "A fluent signer must review and approve the replacement again."
+            )
+            .setPositiveButton("Revoke and record") { _, _ ->
+                if (avatarMotionStore.revokeSignerApproval(gloss)) {
+                    refreshMotionLibraryStatus()
+                    binding.statusText.text = "$gloss approval revoked; preparing replacement capture"
+                    startRecording(gloss)
+                } else {
+                    binding.statusText.text = "Could not revoke the $gloss approval"
+                }
+            }
+            .setNegativeButton("Keep approved", null)
             .show()
     }
 
@@ -863,6 +896,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         lastRecognizedGloss = gloss
         binding.validateMotionButton.visibility = if (clip.signerValidated) View.GONE else View.VISIBLE
         playAvatarMotions(listOf(clip))
+        val diagnostics = AvatarMotionDiagnostics.analyze(clip)
+        binding.confidenceText.text =
+            "${diagnostics.displayText()}\n${diagnostics.reviewGuidance()}"
         val review = avatarMotionStore.loadReview(gloss)
         val status = if (clip.signerValidated && review != null) {
             "${review.signLanguage} reviewed by ${review.reviewerName}"
@@ -874,6 +910,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun confirmSignerValidation() {
         val gloss = lastRecognizedGloss ?: return
+        val clip = avatarMotionStore.load(gloss) ?: return
+        val diagnostics = AvatarMotionDiagnostics.analyze(clip)
         val reviewerInput = EditText(this).apply {
             hint = "Fluent signer's name"
             contentDescription = hint
@@ -899,7 +937,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             .setTitle("Validate this sign motion?")
             .setMessage(
                 "Only continue if a fluent signer has watched the full 3D motion and confirms " +
-                    "that it accurately communicates '$gloss'. The review will be tied to this exact motion file."
+                    "that it accurately communicates '$gloss'. The review will be tied to this exact motion file.\n\n" +
+                    diagnostics.displayText() + "\n" + diagnostics.reviewGuidance() +
+                    "\n\nTracking coverage helps identify recording problems but does not prove sign accuracy."
             )
             .setView(form)
             .setPositiveButton("Signer confirms", null)

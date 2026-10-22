@@ -156,3 +156,42 @@ Avatar implementation added after the original verification record:
 - Two pure Kotlin speed-cycle tests pass, and Android resources compile with
   AAPT2. The complete Gradle suite and visual timing on the Galaxy A17 remain
   the physical-device acceptance checkpoint.
+
+## Conservative avatar tracking stabilization, 2026-10-19
+
+- Newly generated avatar drafts repair only one-frame landmark gaps bounded by
+  valid neighbouring points.
+- A joint is treated as a tracking spike only when neighbouring positions are
+  close to each other and the middle position is a large spatial outlier.
+  Sustained or consistently directional motion is preserved.
+- Stabilization does not alter the classifier input, model weights, frozen test
+  evidence, existing stored motions, or signer-approval policy.
+- Retargeting and stabilization tests report `4 passed`, including gap repair,
+  spike correction, directional-motion preservation, and metadata preservation.
+  Visual acceptance still requires a fluent signer on the physical device.
+
+## Approved-motion correction workflow, 2026-10-19
+
+- Approved library entries now open a management action instead of being
+  silently immutable.
+- Replacement requires a dedicated confirmation. The store writes the current
+  clip as unapproved before deleting its signer review and before starting a
+  new capture, so interruption fails closed.
+- A cancelled or failed replacement leaves an inspectable draft that is absent
+  from local planning and the vocabulary sent to Gemini. The replacement must
+  receive a new hash-bound fluent-signer review.
+- The motion-store sources compile against Android SDK 36. Library-routing tests
+  continue to distinguish missing, draft, and approved states; physical UI
+  confirmation remains a Galaxy A17 acceptance check.
+
+## Avatar tracking diagnostics, 2026-10-22
+
+- Draft preview and signer approval now show independent coverage for both
+  hands, both arms, and facial landmarks instead of one combined hand score.
+- Guidance recommends re-recording when neither hand or arm is reliable, warns
+  about limited face tracking, and asks the reviewer to confirm whether a low-
+  coverage second hand is required rather than assuming every sign is two-handed.
+- Motion format version 6 records face-tracking presence. Version 5 remains
+  readable so no existing approved bytes or review hashes are migrated.
+- Eleven pure avatar tests pass. The version-6 motion store and Filament renderer
+  compile against Android SDK 36 and cached Filament 1.75.0 libraries.

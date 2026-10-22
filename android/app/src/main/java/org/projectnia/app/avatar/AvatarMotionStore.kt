@@ -61,6 +61,19 @@ class AvatarMotionStore(private val context: Context) {
         }
     }
 
+    fun revokeSignerApproval(gloss: String): Boolean {
+        val clip = load(gloss) ?: return false
+        if (!clip.signerValidated) return false
+        return runCatching {
+            // Write the motion as an unapproved draft before removing its
+            // review. Any interruption therefore fails closed: the motion is
+            // never available to reply paths without a matching approval.
+            write(clip.copy(signerValidated = false))
+            reviewFileFor(gloss).delete()
+            load(gloss)?.signerValidated == false
+        }.getOrDefault(false)
+    }
+
     fun load(gloss: String): AvatarMotionClip? {
         val bytes = motionBytes(gloss) ?: return null
         return runCatching {
@@ -222,6 +235,7 @@ class AvatarMotionStore(private val context: Context) {
                 output.writeFloat(frame.face.mouthOpen)
                 output.writeFloat(frame.face.browRaise)
                 output.writeFloat(frame.face.eyeOpen)
+                output.writeBoolean(frame.face.tracked)
             }
         }
         runCatching {
@@ -302,7 +316,8 @@ class AvatarMotionStore(private val context: Context) {
 
     private fun decodeMotion(bytes: ByteArray): AvatarMotionClip =
         DataInputStream(ByteArrayInputStream(bytes).buffered()).use { input ->
-            require(input.readInt() == FILE_VERSION)
+            val fileVersion = input.readInt()
+            require(fileVersion in MINIMUM_SUPPORTED_FILE_VERSION..FILE_VERSION)
             val storedGloss = input.readUTF()
             val validated = input.readBoolean()
             val fps = input.readInt()
@@ -313,7 +328,12 @@ class AvatarMotionStore(private val context: Context) {
                     pose = readJoints(input, 33),
                     leftHand = readJoints(input, 21),
                     rightHand = readJoints(input, 21),
-                    face = AvatarFacePose(input.readFloat(), input.readFloat(), input.readFloat()),
+                    face = AvatarFacePose(
+                        mouthOpen = input.readFloat(),
+                        browRaise = input.readFloat(),
+                        eyeOpen = input.readFloat(),
+                        tracked = fileVersion >= FACE_TRACKING_FILE_VERSION && input.readBoolean(),
+                    ),
                 )
             }
             require(input.read() == -1) { "Motion file has trailing data" }
@@ -364,7 +384,9 @@ class AvatarMotionStore(private val context: Context) {
     private companion object {
         // Version 5 uses Alicia's camera-facing basis and converts MediaPipe's
         // downward screen Y axis into the avatar's upward world Y axis.
-        const val FILE_VERSION = 5
+        const val FILE_VERSION = 6
+        const val MINIMUM_SUPPORTED_FILE_VERSION = 5
+        const val FACE_TRACKING_FILE_VERSION = 6
         const val REVIEW_FILE_VERSION = 1
         const val EXTENSION = "niamotion"
         const val REVIEW_EXTENSION = "niareview"

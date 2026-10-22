@@ -15,6 +15,27 @@ coordinates, not video playback.
 
 Each accepted isolated-sign recording can be retargeted into a 64-frame local `.niamotion` clip. The coordinates are normalized around the signer’s shoulders, resampled, and stored inside the app’s private data directory. The original camera image is not stored.
 
+Before a newly captured draft is stored, a conservative stabilizer repairs a
+single missing landmark frame only when tracked points exist immediately before
+and after it. It also replaces an isolated spatial teleport only when the two
+neighbouring frames closely agree and the middle point is a large outlier.
+Continuous directional movement passes through unchanged. This reduces tracker
+snapping; it does not infer a handshape, generate a sign, or establish linguistic
+accuracy.
+
+Every new draft reports separate tracking coverage for the left hand, right
+hand, left arm, right arm, and face. The report is visible during preview and
+inside the approval dialog. Low coverage produces review guidance, but the app
+does not assume every sign is two-handed and does not convert coverage into a
+claim of linguistic correctness. The fluent signer must still inspect handshape,
+location, movement, orientation, timing, and non-manual information.
+
+Motion format version 6 stores per-frame face-tracking presence for these
+diagnostics. The reader remains compatible with version 5 motions, so existing
+approved files are not rewritten and their review hashes stay valid. Historical
+version 5 files cannot recover face-presence data and therefore show 0% facial
+coverage until they are deliberately replaced.
+
 The **3D signer** button previews the latest motion. A fluent signer must watch the complete animation and explicitly approve it using **Signer-validate avatar motion**. Only approved clips are exposed to the online agent and permitted in generated replies.
 
 The rendered sequence can be replayed without another network request. Playback
@@ -28,8 +49,11 @@ which every item is visibly labelled `NOT RECORDED`, `DRAFT`, or `APPROVED`.
 Selecting a missing sign begins a capture session fixed to that intended gloss;
 this does not retrain the classifier or use its prediction as the label.
 Selecting a draft allows the signer to preview it or record a replacement.
-Approved motions can be previewed but cannot be overwritten from this flow.
-The approval control is shown only for drafts.
+Selecting an approved motion offers preview or a separately confirmed revoke-
+and-replace action. Revocation first rewrites the existing motion as an
+unapproved draft and removes its review, then starts the labelled replacement
+capture. If capture is cancelled, the old motion remains visible for review but
+cannot be used in replies. The approval control is shown only for drafts.
 
 Packaged candidates can be commissioned without pretending they are replies:
 type one exact gloss such as `hello`, tap **3D signer**, inspect the draft, and
@@ -67,6 +91,9 @@ permission.
 - Draft clips never play as agent replies.
 - Approval is valid only while its review digest matches the exact motion file.
 - Replay and speed controls operate only in the renderer and cannot change the approved motion bytes or review digest.
+- Stabilization applies when a new draft is generated and cannot turn a draft into an approved motion.
+- Replacement of an approved motion revokes approval before capture begins, so a cancelled or failed replacement cannot leave the old approval active.
+- Tracking percentages are diagnostic evidence only and never approve a sign automatically.
 - Correcting a recognition discards the wrongly labelled draft before saving the corrected one.
 - An empty gloss list is required when the available vocabulary cannot faithfully communicate the response.
 - A gloss sequence is not automatically assumed to be grammatical ASL. Fluent-sign review remains required.

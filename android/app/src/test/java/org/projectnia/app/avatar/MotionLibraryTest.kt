@@ -42,9 +42,9 @@ class MotionLibraryTest {
     }
 
     @Test
-    fun `selection action protects approved motion and routes missing sign to capture`() {
+    fun `selection routes approved motion to guarded management and missing sign to capture`() {
         assertEquals(
-            MotionLibraryAction.PREVIEW_APPROVED,
+            MotionLibraryAction.MANAGE_APPROVED,
             MotionLibraryPresenter.actionFor(MotionLibraryEntry("hello", approved = true)),
         )
         assertEquals(

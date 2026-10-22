@@ -355,6 +355,7 @@ class RiggedSigningAvatarView @JvmOverloads constructor(
             a.face.mouthOpen + (b.face.mouthOpen - a.face.mouthOpen) * bodyAmount,
             a.face.browRaise + (b.face.browRaise - a.face.browRaise) * bodyAmount,
             a.face.eyeOpen + (b.face.eyeOpen - a.face.eyeOpen) * bodyAmount,
+            tracked = a.face.tracked && b.face.tracked,
         ),
         )
     }

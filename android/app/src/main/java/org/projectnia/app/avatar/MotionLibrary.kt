@@ -23,7 +23,7 @@ data class MotionLibrarySummary(
 enum class MotionLibraryAction {
     START_CAPTURE,
     REVIEW_DRAFT,
-    PREVIEW_APPROVED,
+    MANAGE_APPROVED,
 }
 
 object MotionLibraryPresenter {
@@ -51,7 +51,7 @@ object MotionLibraryPresenter {
     }
 
     fun actionFor(entry: MotionLibraryEntry): MotionLibraryAction = when {
-        entry.approved -> MotionLibraryAction.PREVIEW_APPROVED
+        entry.approved -> MotionLibraryAction.MANAGE_APPROVED
         entry.available -> MotionLibraryAction.REVIEW_DRAFT
         else -> MotionLibraryAction.START_CAPTURE
     }

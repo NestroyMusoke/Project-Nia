@@ -26,6 +26,16 @@ class AvatarMotionRetargeterTest {
         assertTrue(lastWrist.x < firstWrist.x)
     }
 
+    @Test
+    fun recordsWhetherFacialLandmarksWereTracked() {
+        val face = List<Point3?>(478) { Point3(0.4f, 0.4f, 0f) }
+        val tracked = frame(0f).copy(face = face)
+
+        val clip = AvatarMotionRetargeter.fromLandmarks("hello", listOf(tracked, tracked))
+
+        assertTrue(clip.frames.all { it.face.tracked })
+    }
+
     private fun frame(progress: Float): LandmarkFrame {
         val pose = MutableList<Point3?>(33) { null }
         pose[0] = Point3(0.5f, 0.22f, -0.05f)

@@ -19,6 +19,8 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Native OpenGL 3D signing avatar with full upper-body and 21-joint-per-hand articulation; no video clips.
 - Replayable avatar output with user-selectable very slow, slow, and relaxed presentation speeds.
 - Local MediaPipe-to-avatar motion retargeting, draft/validated states, and signer approval gating.
+- Conservative avatar-motion stabilization for isolated one-frame tracking gaps and obvious landmark teleports, without general trajectory smoothing.
+- Per-draft left/right hand, arm, and face tracking diagnostics shown before fluent-signer approval.
 - Offline 32-sign commissioning checklist with Not Recorded/Draft/Approved status, labelled capture, replacement, and review preview.
 - Storage-picker backup and restore for hash-verified approved motions and their signer-review records.
 - Hearing-person message input that asks the online agent for playable, validated sign glosses.
@@ -59,7 +61,7 @@ active recording. Navigating away during capture cancels the partial recording
 and keeps the selected commissioning or calibration target ready for a clean
 retry.
 
-Tap **Review avatar motion library** to see all 32 frozen vocabulary signs and whether each is not recorded, a draft, or approved. Selecting a missing sign starts a labelled capture session; selecting a draft allows preview or deliberate replacement. A fluent signer must inspect a draft before using **Signer-validate avatar motion**. Only validated clips are available to agent replies. A hearing person can type into **Message for the 3D signer** and tap **Sign it**; Gemini may return only glosses the phone has marked as validated. See `docs/AVATAR.md` for the commissioning and safety contract.
+Tap **Review avatar motion library** to see all 32 frozen vocabulary signs and whether each is not recorded, a draft, or approved. Selecting a missing sign starts a labelled capture session; selecting a draft allows preview or deliberate replacement. An approved motion can be replaced only through an explicit confirmation that immediately revokes its approval before recording starts. A fluent signer must inspect every new draft before using **Signer-validate avatar motion**. Only validated clips are available to agent replies. A hearing person can type into **Message for the 3D signer** and tap **Sign it**; Gemini may return only glosses the phone has marked as validated. See `docs/AVATAR.md` for the commissioning and safety contract.
 
 Use **Replay 3D motion** whenever the signer needs to see the exact sequence
 again. **Speed** cycles through very slow, slow, and relaxed presentation rates;

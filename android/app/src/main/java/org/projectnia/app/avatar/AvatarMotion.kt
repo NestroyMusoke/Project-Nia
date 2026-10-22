@@ -21,6 +21,7 @@ data class AvatarFacePose(
     val mouthOpen: Float = 0f,
     val browRaise: Float = 0.5f,
     val eyeOpen: Float = 1f,
+    val tracked: Boolean = false,
 )
 
 data class AvatarMotionClip(
@@ -53,7 +54,9 @@ object AvatarMotionRetargeter {
             val amount = position - low
             interpolate(source[low], source[high], amount)
         }
-        return AvatarMotionClip(gloss = gloss, frames = sampled)
+        return AvatarMotionStabilizer.stabilize(
+            AvatarMotionClip(gloss = gloss, frames = sampled)
+        ).clip
     }
 
     private fun interpolate(a: LandmarkFrame, b: LandmarkFrame, t: Float): AvatarMotionFrame {
@@ -138,13 +141,14 @@ object AvatarMotionRetargeter {
             browDistances.average().toFloat() / faceWidth
         }
         val brow = ((browDistance - 0.08f) * 6f).coerceIn(0f, 1f)
-        return AvatarFacePose(mouth, brow, eye)
+        return AvatarFacePose(mouth, brow, eye, tracked = true)
     }
 
     private fun interpolateFace(a: AvatarFacePose, b: AvatarFacePose, t: Float) = AvatarFacePose(
         mouthOpen = lerp(a.mouthOpen, b.mouthOpen, t),
         browRaise = lerp(a.browRaise, b.browRaise, t),
         eyeOpen = lerp(a.eyeOpen, b.eyeOpen, t),
+        tracked = a.tracked && b.tracked,
     )
 
     private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
