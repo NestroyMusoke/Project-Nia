@@ -61,10 +61,17 @@ use the validation action only when a fluent signer confirms it. The ordinary
 **Sign it** path continues to reject that candidate until approval is recorded.
 
 Approval records the reviewer's name, the sign language reviewed, the review
-time, optional notes, and the exact SHA-256 digest of the motion file. Replacing
-or changing that motion invalidates the approval automatically. A legacy motion
-with only a boolean approval flag is treated as unapproved until it receives an
-auditable review.
+time, optional notes, a structured confirmation checklist, and the exact SHA-256
+digest of the motion file. The fluent signer must explicitly confirm handshape,
+palm orientation and handedness, location and movement, timing and repetition,
+and facial/non-manual information. The dialog is scrollable on a phone and will
+not save approval until every item is checked. Replacing or changing the motion
+invalidates approval automatically. A legacy motion with only a boolean approval
+flag is treated as unapproved until it receives an auditable review.
+
+Review format version 2 stores the structured checklist. Version 1 hash-bound
+reviews remain readable and approved, but the preview labels them as legacy
+reviews without a structured checklist; they are never silently upgraded.
 
 ## Approved-motion backup
 
@@ -94,6 +101,7 @@ permission.
 - Stabilization applies when a new draft is generated and cannot turn a draft into an approved motion.
 - Replacement of an approved motion revokes approval before capture begins, so a cancelled or failed replacement cannot leave the old approval active.
 - Tracking percentages are diagnostic evidence only and never approve a sign automatically.
+- A new review is rejected unless every structured linguistic checklist item is explicitly confirmed.
 - Correcting a recognition discards the wrongly labelled draft before saving the corrected one.
 - An empty gloss list is required when the available vocabulary cannot faithfully communicate the response.
 - A gloss sequence is not automatically assumed to be grammatical ASL. Fluent-sign review remains required.

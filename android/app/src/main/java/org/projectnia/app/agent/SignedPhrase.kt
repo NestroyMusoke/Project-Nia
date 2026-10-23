@@ -42,6 +42,12 @@ class SignedPhraseBuffer(private val capacity: Int = MAX_TOKENS) {
 
     fun clear() = tokens.clear()
 
+    fun restore(restoredTokens: List<RecognizedSignToken>): Int {
+        tokens.clear()
+        tokens += restoredTokens.take(capacity)
+        return tokens.size
+    }
+
     fun snapshot(): List<RecognizedSignToken> = tokens.toList()
 
     fun isEmpty(): Boolean = tokens.isEmpty()
@@ -58,5 +64,34 @@ class SignedPhraseBuffer(private val capacity: Int = MAX_TOKENS) {
 
     companion object {
         const val MAX_TOKENS = 20
+    }
+}
+
+object SignedPhraseRestorePolicy {
+    fun decode(
+        labels: List<String>,
+        confidences: FloatArray,
+        margins: FloatArray,
+        corrected: BooleanArray,
+    ): List<RecognizedSignToken> {
+        val count = minOf(
+            labels.size,
+            confidences.size,
+            margins.size,
+            corrected.size,
+            SignedPhraseBuffer.MAX_TOKENS,
+        )
+        return buildList {
+            repeat(count) { index ->
+                runCatching {
+                    RecognizedSignToken(
+                        label = labels[index],
+                        confidence = confidences[index],
+                        margin = margins[index],
+                        userCorrected = corrected[index],
+                    )
+                }.getOrNull()?.let(::add)
+            }
+        }
     }
 }

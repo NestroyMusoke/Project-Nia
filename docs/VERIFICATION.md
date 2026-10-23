@@ -195,3 +195,29 @@ Avatar implementation added after the original verification record:
   readable so no existing approved bytes or review hashes are migrated.
 - Eleven pure avatar tests pass. The version-6 motion store and Filament renderer
   compile against Android SDK 36 and cached Filament 1.75.0 libraries.
+
+## Structured fluent-signer review, 2026-10-22
+
+- New signer approval requires explicit confirmation of handshape/fingers,
+  orientation/handedness, location/movement, timing/repetition, and non-manual
+  information in a scrollable phone dialog.
+- Review format version 2 persists the checklist alongside reviewer identity,
+  language, time, notes, and the exact motion digest. The store rejects an
+  incomplete checklist.
+- Version 1 reviews remain readable and hash-valid but are labelled as legacy;
+  no historical review is silently upgraded to claim checks that were not made.
+- The combined focused avatar suite reports `13 passed`, and the version-2
+  review store compiles against Android SDK 36. Full UI acceptance remains on
+  the Galaxy A17.
+
+## Privacy-scoped session restoration, 2026-10-23
+
+- Android saved-instance state restores the accepted pending sign phrase, its
+  correction markers, the anonymous online session ID, and avatar playback
+  speed after activity or process recreation.
+- Raw frames, MediaPipe landmarks, 384-D embeddings, in-progress recording,
+  avatar motion bytes, and signer-review content are never placed in the saved
+  state. Interrupted recording continues to fail closed and must be repeated.
+- Restore input is bounded to 20 tokens, uses the shortest parallel-array
+  length, and drops malformed token entries. Unit coverage includes capacity,
+  malformed state, and mismatched-array handling.

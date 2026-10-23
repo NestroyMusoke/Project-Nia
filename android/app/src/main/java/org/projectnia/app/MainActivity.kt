@@ -9,8 +9,11 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.view.View
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +28,7 @@ import org.projectnia.app.agent.AgentStatusPresenter
 import org.projectnia.app.agent.InstallIdentityStore
 import org.projectnia.app.agent.RecognizedSignToken
 import org.projectnia.app.agent.SignedPhraseBuffer
+import org.projectnia.app.agent.SignedPhraseRestorePolicy
 import org.projectnia.app.avatar.AvatarMotionClip
 import org.projectnia.app.avatar.AvatarMotionDiagnostics
 import org.projectnia.app.avatar.AvatarMotionRetargeter
@@ -34,6 +38,7 @@ import org.projectnia.app.avatar.AvatarPlaybackSpeed
 import org.projectnia.app.avatar.MotionLibraryAction
 import org.projectnia.app.avatar.MotionLibraryPresenter
 import org.projectnia.app.avatar.SignedMessagePlanner
+import org.projectnia.app.avatar.SignerReviewCriterion
 import org.projectnia.app.databinding.ActivityMainBinding
 import org.projectnia.app.ml.ConfidenceGate
 import org.projectnia.app.ml.CaptureQualityGate
@@ -82,7 +87,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     @Volatile private var translatingPhrase = false
     @Volatile private var commissioningGloss: String? = null
     @Volatile private var calibrationClassId: Int? = null
-    private val sessionId = UUID.randomUUID().toString()
+    private var sessionId = UUID.randomUUID().toString()
 
     private val requestCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) startCamera() else binding.statusText.text = "Camera permission is required"
@@ -139,6 +144,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        restoreEphemeralSession(savedInstanceState)
 
         frameExtractor = HolisticFrameExtractor(this)
         model = NiaModel(this)
@@ -181,6 +187,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         } else {
             requestCamera.launch(Manifest.permission.CAMERA)
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        val tokens = signedPhrase.snapshot()
+        outState.putStringArrayList(STATE_SIGN_LABELS, ArrayList(tokens.map { it.label }))
+        outState.putFloatArray(STATE_SIGN_CONFIDENCES, tokens.map { it.confidence }.toFloatArray())
+        outState.putFloatArray(STATE_SIGN_MARGINS, tokens.map { it.margin }.toFloatArray())
+        outState.putBooleanArray(STATE_SIGN_CORRECTED, tokens.map { it.userCorrected }.toBooleanArray())
+        outState.putString(STATE_AVATAR_SPEED, avatarPlaybackSpeed.name)
+        outState.putString(STATE_SESSION_ID, sessionId)
+        super.onSaveInstanceState(outState)
+    }
+
+    private fun restoreEphemeralSession(savedState: Bundle?) {
+        if (savedState == null) return
+        val labels = savedState.getStringArrayList(STATE_SIGN_LABELS).orEmpty()
+        val confidences = savedState.getFloatArray(STATE_SIGN_CONFIDENCES) ?: FloatArray(0)
+        val margins = savedState.getFloatArray(STATE_SIGN_MARGINS) ?: FloatArray(0)
+        val corrected = savedState.getBooleanArray(STATE_SIGN_CORRECTED) ?: BooleanArray(0)
+        signedPhrase.restore(
+            SignedPhraseRestorePolicy.decode(labels, confidences, margins, corrected)
+        )
+        avatarPlaybackSpeed = savedState.getString(STATE_AVATAR_SPEED)
+            ?.let { stored -> runCatching { AvatarPlaybackSpeed.valueOf(stored) }.getOrNull() }
+            ?: AvatarPlaybackSpeed.SLOW
+        sessionId = savedState.getString(STATE_SESSION_ID)
+            ?.takeIf { stored -> runCatching { UUID.fromString(stored) }.isSuccess }
+            ?: UUID.randomUUID().toString()
     }
 
     private fun startCamera() {
@@ -901,7 +935,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             "${diagnostics.displayText()}\n${diagnostics.reviewGuidance()}"
         val review = avatarMotionStore.loadReview(gloss)
         val status = if (clip.signerValidated && review != null) {
-            "${review.signLanguage} reviewed by ${review.reviewerName}"
+            "${review.signLanguage} reviewed by ${review.reviewerName} | ${review.checklistStatus()}"
         } else {
             "draft - fluent signer review required"
         }
@@ -925,6 +959,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             contentDescription = hint
             maxLines = 3
         }
+        val checklistTitle = TextView(this).apply {
+            text = "Fluent signer confirms all of the following:"
+            setPadding(0, (12 * resources.displayMetrics.density).toInt(), 0, 0)
+        }
+        val checklist = SignerReviewCriterion.entries.associateWith { criterion ->
+            CheckBox(this).apply {
+                text = criterion.displayText
+                contentDescription = criterion.displayText
+            }
+        }
         val padding = (20 * resources.displayMetrics.density).toInt()
         val form = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -932,7 +976,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             addView(reviewerInput)
             addView(languageInput)
             addView(notesInput)
+            addView(checklistTitle)
+            checklist.values.forEach { addView(it) }
         }
+        val scrollableForm = ScrollView(this).apply { addView(form) }
         val dialog = AlertDialog.Builder(this)
             .setTitle("Validate this sign motion?")
             .setMessage(
@@ -941,7 +988,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     diagnostics.displayText() + "\n" + diagnostics.reviewGuidance() +
                     "\n\nTracking coverage helps identify recording problems but does not prove sign accuracy."
             )
-            .setView(form)
+            .setView(scrollableForm)
             .setPositiveButton("Signer confirms", null)
             .setNegativeButton("Keep as draft", null)
             .create()
@@ -949,14 +996,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val reviewer = reviewerInput.text.toString().trim()
                 val language = languageInput.text.toString().trim()
+                val confirmedCriteria = checklist.filterValues { it.isChecked }.keys
                 when {
                     reviewer.length < 2 -> reviewerInput.error = "Enter the fluent signer's name"
                     language.length < 2 -> languageInput.error = "Enter the sign language reviewed"
+                    confirmedCriteria.size != SignerReviewCriterion.entries.size -> {
+                        checklist.values.firstOrNull { !it.isChecked }?.error = "Confirm every review item"
+                        binding.statusText.text = "The fluent signer must confirm every checklist item"
+                    }
                     avatarMotionStore.markSignerValidated(
                         gloss = gloss,
                         reviewerName = reviewer,
                         signLanguage = language,
                         notes = notesInput.text.toString(),
+                        confirmedCriteria = confirmedCriteria,
                     ) -> {
                         binding.statusText.text = "$gloss approved for $language replies by $reviewer"
                         refreshMotionLibraryStatus()
@@ -1071,5 +1124,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         cameraExecutor.shutdown()
         networkExecutor.shutdown()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val STATE_SIGN_LABELS = "nia.pending_signs.labels"
+        const val STATE_SIGN_CONFIDENCES = "nia.pending_signs.confidences"
+        const val STATE_SIGN_MARGINS = "nia.pending_signs.margins"
+        const val STATE_SIGN_CORRECTED = "nia.pending_signs.corrected"
+        const val STATE_AVATAR_SPEED = "nia.avatar.speed"
+        const val STATE_SESSION_ID = "nia.session.id"
     }
 }

@@ -11,6 +11,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Local LiteRT inference with output discovery by tensor shape.
 - Confidence and top-two-margin rejection instead of forced guesses.
 - Reviewable on-device phrase buffer for up to 20 separately recorded signs, with latest-capture correction and explicit translation.
+- Privacy-scoped Android state restoration for the pending phrase and avatar playback speed after activity or process recreation.
 - Persistent, local 384-D prototype personalization using the frozen 3-shot / `0.65` / temperature `12` protocol.
 - Guided local personalization checklist for exactly three 384-D examples per sign, with per-sign progress and reset.
 - Optional online client for a Gemini + Google ADK service.
@@ -21,6 +22,7 @@ Android-first, privacy-preserving assistance built around the frozen Project Nia
 - Local MediaPipe-to-avatar motion retargeting, draft/validated states, and signer approval gating.
 - Conservative avatar-motion stabilization for isolated one-frame tracking gaps and obvious landmark teleports, without general trajectory smoothing.
 - Per-draft left/right hand, arm, and face tracking diagnostics shown before fluent-signer approval.
+- Hash-bound fluent-signer approval checklist covering handshape, orientation, location/movement, timing, and non-manual information.
 - Offline 32-sign commissioning checklist with Not Recorded/Draft/Approved status, labelled capture, replacement, and review preview.
 - Storage-picker backup and restore for hash-verified approved motions and their signer-review records.
 - Hearing-person message input that asks the online agent for playable, validated sign glosses.
@@ -100,7 +102,11 @@ Only the accepted labels and their confidence metadata leave the phone when the
 user explicitly taps **Translate signed phrase**. A manual correction is marked
 as user-corrected so the agent does not mistake the model's original confidence
 for confidence in the corrected label. The buffer is limited to 20 tokens and
-does not claim continuous-sign recognition.
+does not claim continuous-sign recognition. Android saved-instance state
+restores that pending buffer and the selected avatar speed after system
+recreation. It does not persist camera frames, landmarks, personal embeddings,
+in-progress recordings, or avatar motion bytes. This is interruption recovery,
+not permanent conversation history; **Clear** still removes the pending phrase.
 
 ## Agent setup
 

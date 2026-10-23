@@ -29,6 +29,13 @@ flowchart TD
 
 Raw camera frames, landmarks, avatar motion, and personal embeddings remain on device. Separately captured accepted signs accumulate in a bounded local buffer and remain reviewable until the user clears them. Only when the user explicitly requests translation are the accepted labels, confidence metadata, user-correction markers, and available validated gloss names sent to the online agent. A hearing-person message is sent only when supplied. Pub/Sub is reserved for non-urgent work; immediate replies stay synchronous.
 
+Android saved-instance state may carry the bounded accepted-token metadata,
+anonymous session ID, and playback-speed selection across activity or process
+recreation. It intentionally excludes raw frames, landmarks, embeddings,
+in-progress capture state, generated motion, and reviewer data. Corrupt or
+mismatched token arrays are truncated and invalid entries are rejected before
+the phrase buffer is restored.
+
 Each installation creates a random anonymous `install-<UUID>` value in private
 preferences. It separates Firestore conversation paths without using hardware,
 account, advertising, or contact identifiers. Android automatic backup and

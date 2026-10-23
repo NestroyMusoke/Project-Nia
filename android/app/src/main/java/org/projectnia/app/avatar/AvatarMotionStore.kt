@@ -33,11 +33,17 @@ class AvatarMotionStore(private val context: Context) {
         reviewerName: String,
         signLanguage: String,
         notes: String = "",
+        confirmedCriteria: Set<SignerReviewCriterion>,
     ): Boolean {
         val cleanReviewer = reviewerName.trim()
         val cleanLanguage = signLanguage.trim()
         val cleanNotes = notes.trim()
-        if (cleanReviewer.length !in 2..120 || cleanLanguage.length !in 2..40 || cleanNotes.length > 500) {
+        if (
+            cleanReviewer.length !in 2..120 ||
+            cleanLanguage.length !in 2..40 ||
+            cleanNotes.length > 500 ||
+            !confirmedCriteria.containsAll(SignerReviewCriterion.entries)
+        ) {
             return false
         }
         val clip = load(gloss) ?: return false
@@ -49,6 +55,7 @@ class AvatarMotionStore(private val context: Context) {
             reviewedAtEpochMillis = System.currentTimeMillis(),
             motionSha256 = digest,
             notes = cleanNotes,
+            confirmedCriteria = confirmedCriteria,
         )
         return runCatching { writeReview(gloss, review) }.isSuccess
     }
@@ -285,6 +292,10 @@ class AvatarMotionStore(private val context: Context) {
             output.writeLong(review.reviewedAtEpochMillis)
             output.writeUTF(review.motionSha256)
             output.writeUTF(review.notes)
+            output.writeInt(review.confirmedCriteria.size)
+            review.confirmedCriteria.sortedBy { it.ordinal }.forEach { criterion ->
+                output.writeUTF(criterion.name)
+            }
         }
         runCatching {
             Files.move(
@@ -342,13 +353,23 @@ class AvatarMotionStore(private val context: Context) {
 
     private fun decodeReview(bytes: ByteArray): SignerReview =
         DataInputStream(ByteArrayInputStream(bytes).buffered()).use { input ->
-            require(input.readInt() == REVIEW_FILE_VERSION)
+            val reviewVersion = input.readInt()
+            require(reviewVersion in MINIMUM_SUPPORTED_REVIEW_FILE_VERSION..REVIEW_FILE_VERSION)
             val review = SignerReview(
                 reviewerName = input.readUTF(),
                 signLanguage = input.readUTF(),
                 reviewedAtEpochMillis = input.readLong(),
                 motionSha256 = input.readUTF(),
                 notes = input.readUTF(),
+                confirmedCriteria = if (reviewVersion >= CHECKLIST_REVIEW_FILE_VERSION) {
+                    val count = input.readInt()
+                    require(count in 0..SignerReviewCriterion.entries.size)
+                    buildSet {
+                        repeat(count) {
+                            add(SignerReviewCriterion.valueOf(input.readUTF()))
+                        }
+                    }
+                } else emptySet(),
             )
             require(input.read() == -1) { "Review file has trailing data" }
             review
@@ -387,7 +408,9 @@ class AvatarMotionStore(private val context: Context) {
         const val FILE_VERSION = 6
         const val MINIMUM_SUPPORTED_FILE_VERSION = 5
         const val FACE_TRACKING_FILE_VERSION = 6
-        const val REVIEW_FILE_VERSION = 1
+        const val REVIEW_FILE_VERSION = 2
+        const val MINIMUM_SUPPORTED_REVIEW_FILE_VERSION = 1
+        const val CHECKLIST_REVIEW_FILE_VERSION = 2
         const val EXTENSION = "niamotion"
         const val REVIEW_EXTENSION = "niareview"
         const val ASSET_DIRECTORY = "avatar_motions"

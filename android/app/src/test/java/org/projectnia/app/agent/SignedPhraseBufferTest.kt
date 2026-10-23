@@ -39,5 +39,41 @@ class SignedPhraseBufferTest {
         assertEquals("Signed phrase: I_LOVE_YOU (1/3)", buffer.displayText())
     }
 
+    @Test
+    fun restoreReplacesExistingTokensAndHonorsCapacity() {
+        val buffer = SignedPhraseBuffer(capacity = 2)
+        buffer.append(token("old"))
+
+        val restored = buffer.restore(listOf(token("hello"), token("please"), token("thanks")))
+
+        assertEquals(2, restored)
+        assertEquals(listOf("hello", "please"), buffer.snapshot().map { it.label })
+    }
+
+    @Test
+    fun restorePolicyRejectsMalformedTokensAndMismatchedTrailingData() {
+        val restored = SignedPhraseRestorePolicy.decode(
+            labels = listOf("hello", "", "unused"),
+            confidences = floatArrayOf(0.8f, 0.7f),
+            margins = floatArrayOf(0.2f, Float.NaN, 0.1f),
+            corrected = booleanArrayOf(false, true, false),
+        )
+
+        assertEquals(listOf("hello"), restored.map { it.label })
+    }
+
+    @Test
+    fun restorePolicyCapsUntrustedStateAtPhraseLimit() {
+        val labels = List(SignedPhraseBuffer.MAX_TOKENS + 5) { "sign_$it" }
+        val restored = SignedPhraseRestorePolicy.decode(
+            labels = labels,
+            confidences = FloatArray(labels.size) { 0.8f },
+            margins = FloatArray(labels.size) { 0.2f },
+            corrected = BooleanArray(labels.size),
+        )
+
+        assertEquals(SignedPhraseBuffer.MAX_TOKENS, restored.size)
+    }
+
     private fun token(label: String) = RecognizedSignToken(label, 0.8f, 0.2f)
 }
