@@ -49,6 +49,8 @@ which every item is visibly labelled `NOT RECORDED`, `DRAFT`, or `APPROVED`.
 Selecting a missing sign begins a capture session fixed to that intended gloss;
 this does not retrain the classifier or use its prediction as the label.
 Selecting a draft allows the signer to preview it or record a replacement.
+A locally recorded draft without a packaged fallback can also be discarded
+after confirmation. Packaged candidates remain available for review.
 Selecting an approved motion offers preview or a separately confirmed revoke-
 and-replace action. Revocation first rewrites the existing motion as an
 unapproved draft and removes its review, then starts the labelled replacement

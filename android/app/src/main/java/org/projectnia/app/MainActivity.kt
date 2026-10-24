@@ -845,27 +845,64 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun showDraftActions(gloss: String) {
+        val canDiscard = avatarMotionStore.canDiscardDraft(gloss)
+        val actions = if (canDiscard) {
+            arrayOf("Preview for signer review", "Record a replacement", "Discard this draft")
+        } else {
+            arrayOf("Preview for signer review", "Record a replacement")
+        }
         AlertDialog.Builder(this)
             .setTitle("${gloss.uppercase(Locale.ROOT)} draft")
-            .setItems(arrayOf("Preview for signer review", "Record a replacement")) { _, action ->
-                if (action == 0) {
-                    lastRecognizedGloss = gloss
-                    binding.hearingMessageInput.setText(gloss)
-                    previewLastAvatarMotion()
-                } else {
-                    confirmCommissioningCapture(gloss)
+            .setItems(actions) { _, action ->
+                when (action) {
+                    0 -> {
+                        lastRecognizedGloss = gloss
+                        binding.hearingMessageInput.setText(gloss)
+                        previewLastAvatarMotion()
+                    }
+                    1 -> confirmCommissioningCapture(gloss)
+                    2 -> confirmDraftDiscard(gloss)
                 }
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun confirmCommissioningCapture(gloss: String) {
+    private fun confirmDraftDiscard(gloss: String) {
+        if (!avatarMotionStore.canDiscardDraft(gloss)) {
+            binding.statusText.text = "Only a locally recorded, unapproved draft can be discarded"
+            return
+        }
         AlertDialog.Builder(this)
-            .setTitle("Record ${gloss.uppercase(Locale.ROOT)}")
+            .setTitle("Discard ${gloss.uppercase(Locale.ROOT)} draft?")
+            .setMessage("This removes the unapproved motion from this phone. Record the sign again when ready.")
+            .setPositiveButton("Discard draft") { _, _ ->
+                if (avatarMotionStore.discardDraft(gloss)) {
+                    if (lastRecognizedGloss == gloss) {
+                        lastRecognizedGloss = null
+                        binding.avatarView.clearMotion()
+                        binding.validateMotionButton.visibility = View.GONE
+                        refreshAvatarPlaybackControls()
+                        showCameraStage()
+                    }
+                    binding.statusText.text = "$gloss draft discarded"
+                    refreshMotionLibraryStatus()
+                } else {
+                    binding.statusText.text = "Could not discard the $gloss draft"
+                }
+            }
+            .setNegativeButton("Keep draft", null)
+            .show()
+    }
+
+    private fun confirmCommissioningCapture(gloss: String) {
+        val existingDraft = avatarMotionStore.load(gloss)?.signerValidated == false
+        AlertDialog.Builder(this)
+            .setTitle(if (existingDraft) "Replace ${gloss.uppercase(Locale.ROOT)} draft?" else "Record ${gloss.uppercase(Locale.ROOT)}")
             .setMessage(
                 "This creates an avatar-motion draft for '$gloss'. The person recording must know the intended sign. " +
-                    "Nia will not use the draft in replies until a fluent signer reviews the rendered avatar."
+                    "Nia will not use the draft in replies until a fluent signer reviews the rendered avatar." +
+                    (if (existingDraft) " A successful new capture replaces the current draft." else "")
             )
             .setPositiveButton("Start recording") { _, _ -> startRecording(gloss) }
             .setNegativeButton("Cancel", null)

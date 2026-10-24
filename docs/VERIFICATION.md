@@ -221,3 +221,13 @@ Avatar implementation added after the original verification record:
 - Restore input is bounded to 20 tokens, uses the shortest parallel-array
   length, and drops malformed token entries. Unit coverage includes capacity,
   malformed state, and mismatched-array handling.
+
+## Draft rejection workflow, 2026-10-23
+
+- The motion library now offers confirmed discard for locally recorded,
+  unapproved drafts without a packaged fallback. The action checks eligibility
+  again before deleting the file.
+- When the discarded draft is showing, the preview and signer-approval control
+  are cleared. The library returns that gloss to Not Recorded.
+- Replacement capture explicitly says that a successful capture overwrites the
+  current draft. Fluent-signer visual review remains necessary on a phone.

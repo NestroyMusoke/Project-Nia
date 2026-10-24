@@ -60,12 +60,15 @@ class AvatarMotionStore(private val context: Context) {
         return runCatching { writeReview(gloss, review) }.isSuccess
     }
 
-    fun discardDraft(gloss: String) {
-        val clip = load(gloss) ?: return
-        if (!clip.signerValidated) {
-            fileFor(gloss).delete()
-            reviewFileFor(gloss).delete()
-        }
+    fun canDiscardDraft(gloss: String): Boolean =
+        load(gloss)?.signerValidated == false &&
+            fileFor(gloss).exists() && !hasPackagedMotion(gloss)
+
+    fun discardDraft(gloss: String): Boolean {
+        if (!canDiscardDraft(gloss)) return false
+        val removed = fileFor(gloss).delete()
+        if (removed) reviewFileFor(gloss).delete()
+        return removed && load(gloss) == null
     }
 
     fun revokeSignerApproval(gloss: String): Boolean {
@@ -274,6 +277,10 @@ class AvatarMotionStore(private val context: Context) {
             runCatching { context.assets.open("$ASSET_DIRECTORY/${file.name}").use { it.readBytes() } }.getOrNull()
         }
     }
+
+    private fun hasPackagedMotion(gloss: String): Boolean = runCatching {
+        context.assets.open("$ASSET_DIRECTORY/${fileFor(gloss).name}").use { true }
+    }.getOrDefault(false)
 
     private fun motionDigest(gloss: String): String? = motionBytes(gloss)?.let(::sha256)
 
